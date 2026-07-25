@@ -77,13 +77,33 @@ Note that `/health` and `/statics` sit **outside** GOWA's basic auth, so while t
 QR PNG is fetchable by anyone with the URL. The filename is a UUID and the file is deleted after
 ~30s, which is why this window is measured in minutes.
 
-### 2. Request the QR
+### 2. Create a device, THEN request the QR
+
+**v9 needs a device to exist before it will issue a QR.** This step does not appear in the
+v8-era documentation these notes were derived from, and without it `/app/login` answers
+`400 DEVICE_ID_REQUIRED` — which reads like a credentials or config fault and is neither.
+Confirmed by doing it on 2026-07-25.
 
 ```sh
-curl -u penny:<password> https://<gowa-domain>/app/login
+# 1. Create the device. `name` is required; an empty body is a 400.
+curl -u penny:<password> -X POST https://<gowa-domain>/devices \
+     -H 'Content-Type: application/json' -d '{"name":"penny"}'
+# -> {"results":{"id":"<device_id>","state":"disconnected","jid":"", ...}}
+
+# 2. Now the QR, scoped to that device.
+curl -u penny:<password> "https://<gowa-domain>/app/login?device_id=<device_id>"
 ```
 
 Returns `{device_id, qr_link, qr_duration}`.
+
+`qr_duration` came back as **30 seconds**, not the minutes the v8 notes implied. Have the phone
+unlocked and on the Linked Devices screen *before* you request it. This one-liner fetches a fresh
+code and opens it, so re-running is cheap:
+
+```sh
+curl -s -u penny:<password> "https://<gowa-domain>/app/login?device_id=<device_id>" \
+| python3 -c "import json,sys,subprocess; u=json.load(sys.stdin)['results']['qr_link']; print(u); subprocess.run(['open',u])"
+```
 
 - **`qr_link` is a PNG URL, not a raw QR string.** Open it in a browser; don't try to render it as
   text.

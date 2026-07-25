@@ -194,21 +194,37 @@ async def get_status() -> GowaStatus:
 async def start_login() -> GowaLogin:
     """Request a pairing QR. BLOCKS for up to ~120s — never call this from a polling path.
 
-    UNVERIFIED against v9, deliberately: confirming it means completing a real pairing with a
-    physical phone, which is the M1b spike. Every other `/app/*` route on the deployed image
-    demands a device id, but `/app/login` is the route that CREATES a device, so it cannot
-    require one for the first pairing. We therefore send the id only for a re-pair, where one
-    exists, and fall back to no id. If v9 turns out to want a device created first, this is
-    where it will show up — the error body says exactly what is missing.
+    VERIFIED against v9.0.0 by completing a real pairing on 2026-07-25 — and the guess this
+    docstring used to hold was WRONG. `/app/login` does NOT create a device; it demands a device
+    id like every other `/app/*` route, so a device must exist first via
+    `POST /devices {"name": ...}`. Hence create-then-login rather than login-and-hope.
+    `qr_duration` is 30 seconds, so callers should expect to re-request rather than treat one QR
+    as a durable link.
     """
-    devices, _ = await list_devices()
+    devices, error = await list_devices()
+    if devices is None:
+        return GowaLogin(available=False, error=error)
+
     device_id = None
     if devices:
+        # Re-pair reuses the existing device, so the household keeps one identity across
+        # sessions rather than accumulating a dead placeholder per QR scan.
         device_id = _as_str(devices[0].get("device_id")) or _as_str(devices[0].get("id"))
-    params = {"device_id": device_id} if device_id else None
-    results, error = await _call("GET", "/app/login", params=params, http_timeout=LOGIN_TIMEOUT)
+    else:
+        created, error = await _call(
+            "POST", "/devices", json={"name": "penny"}, http_timeout=STATUS_TIMEOUT
+        )
+        if created is None:
+            return GowaLogin(available=False, error=error)
+        device_id = _as_str(created.get("id")) or _as_str(created.get("device_id"))
+    if not device_id:
+        return GowaLogin(available=False, error="gowa_no_device_id")
+
+    results, error = await _call(
+        "GET", "/app/login", params={"device_id": device_id}, http_timeout=LOGIN_TIMEOUT
+    )
     if results is None:
-        return GowaLogin(available=False, error=error)
+        return GowaLogin(available=False, device_id=device_id, error=error)
     duration = results.get("qr_duration")
     return GowaLogin(
         available=True,
