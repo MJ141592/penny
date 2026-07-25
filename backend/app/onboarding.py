@@ -289,6 +289,17 @@ def welcome_message(username: str, passphrase: str, public_url: str) -> str:
     WhatsApp history is retroactive — anyone added to this group next year can scroll back and
     read it — so that has to be said plainly rather than discovered. And it has to say the
     password can be changed, or the only remedy anyone knows about is a new group.
+
+    It also ASKS FOR CONTEXT, in the chat, right at the start. That is not politeness: the care
+    recipient's name and background are the single largest input to extraction quality, because
+    they are what turns "she had a bad night again" into a fact about a named person, and what
+    stops a sibling's own dentist appointment being filed as care. Asking in the group beats
+    waiting for someone to fill in a form, because the answer arrives as an ordinary message and
+    is therefore ingested and visible to extraction from that moment on.
+
+    Asked as three specific questions rather than "tell me about them" — an open prompt gets a
+    one-word reply, and the third question is where the durable facts live (conditions,
+    medications, the GP's name) that later messages assume you already know.
     """
     url = public_url.rstrip("/")
     return (
@@ -304,7 +315,15 @@ def welcome_message(username: str, passphrase: str, public_url: str) -> str:
         f"Username: {username}\n"
         f"Password: {passphrase}\n"
         "\n"
-        "Sign in and tell me who you're looking after, and I'll take it from there.\n"
+        "To get me started, could someone reply here with:\n"
+        "\n"
+        "1. Who you're looking after, and what you call them in this chat\n"
+        "2. Roughly their age, and how they live day to day\n"
+        "3. Anything ongoing worth knowing — conditions, medications, their GP or hospital\n"
+        "\n"
+        "That last one matters more than it sounds. It is what lets me understand a message "
+        'like "she had a bad night again" months from now, instead of guessing who "she" is. '
+        "You can also add it at Settings on the website.\n"
         "\n"
         "Two things worth knowing: this message contains your password, so anyone added to this "
         "group later can scroll back and read it, and you can change it in Settings whenever "
