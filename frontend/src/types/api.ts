@@ -141,10 +141,64 @@ export interface Member {
   last_seen_at: string
 }
 
+/**
+ * `GET /api/whatsapp/status`.
+ *
+ * `linked` is Penny's own state (a `whatsapp_links` row exists). `is_connected`/`is_logged_in`
+ * are proxied from GOWA and are **`false` when GOWA is unreachable**, not an error — the panel
+ * says "not connected", it never crashes. A dead session (`is_logged_in: false`) is routine: the
+ * family re-pairs by QR and nothing was lost.
+ */
+export interface WhatsappStatus {
+  linked: boolean
+  is_connected: boolean
+  is_logged_in: boolean
+  group_external_id: string | null
+  /**
+   * Beyond the four fields in `docs/api-contract.md`, and both additive.
+   *
+   * `gowa_available` separates "the bridge did not answer" from "the bridge answered and the
+   * session is dead" — two states that both arrive as `is_connected: false` and want completely
+   * different sentences on screen. `unlinked_groups` are groups that have messaged the bridge
+   * while unlinked, which is how the family finds their chat id without going hunting for it.
+   * Optional so the panel still renders against a backend that predates either.
+   */
+  gowa_available?: boolean
+  unlinked_groups?: UnlinkedGroup[]
+}
+
+/** A group that messaged the bridge while nothing was linked — a candidate for the link form. */
+export interface UnlinkedGroup {
+  chat_id: string
+  message_count: number
+  first_seen_at: string
+  last_seen_at: string
+}
+
+/**
+ * `POST /api/whatsapp/relink` — a fresh pairing QR.
+ *
+ * **`qr_link` is a PNG URL**: render it in an `<img>`, do not feed it to a QR encoder. The
+ * request itself blocks for up to two minutes inside the bridge and the PNG is deleted after
+ * about `qr_duration` seconds, so this is a button, never a poll.
+ */
+export interface WhatsappRelink {
+  available: boolean
+  device_id: string | null
+  qr_link: string | null
+  qr_duration: number | null
+  error: string | null
+}
+
+/**
+ * `sender` and `text` are nullable: a system line has no sender, and a media placeholder has no
+ * text. The wizard renders the gap rather than inventing a name — a fabricated attribution next
+ * to a real timestamp is worse than an obvious blank.
+ */
 export interface PreviewMessage {
   sent_at: string
-  sender: string
-  text: string
+  sender: string | null
+  text: string | null
 }
 
 /** What the `.txt` parser found, from `POST /api/imports/preview`. Nothing is stored yet. */
@@ -158,8 +212,9 @@ export interface ParseReport {
   unparsed_samples: string[]
   detected_format: string
   senders: Record<string, number>
-  first_sent_at: string
-  last_sent_at: string
+  /** Null when the file contained no parseable message at all, not just no dated one. */
+  first_sent_at: string | null
+  last_sent_at: string | null
   preview_head: PreviewMessage[]
   preview_tail: PreviewMessage[]
 }

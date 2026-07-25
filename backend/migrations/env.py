@@ -33,6 +33,20 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
+def include_object(
+    obj: object, name: str | None, type_: str, reflected: bool, compare_to: object
+) -> bool:
+    """Never autogenerate a change to a table we do not own.
+
+    GOWA's whatsmeow session store lives on this same Postgres, so `alembic revision
+    --autogenerate` sees its `whatsmeow_*` tables as extras and would cheerfully emit
+    `op.drop_table(...)` for every one of them. Dropping the session store means a manual QR
+    re-pair requiring a family member's physical phone — a catastrophic outcome for a command
+    that reads like a routine schema refresh.
+    """
+    return not (type_ == "table" and reflected and name not in target_metadata.tables)
+
+
 def database_url() -> str:
     settings = get_settings()
     url = context.get_x_argument(as_dictionary=True).get("url")
@@ -51,6 +65,7 @@ def do_run_migrations(connection: Connection) -> None:
         # Catches a column whose type changed in models.py but not in the database — the
         # failure mode where everything looks migrated and inserts start rejecting.
         compare_type=True,
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -79,6 +94,7 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
+        include_object=include_object,
     )
 
     with context.begin_transaction():

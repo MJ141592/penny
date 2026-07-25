@@ -116,6 +116,7 @@ CI runs `pytest -m "not live"` plus the frontend build on every PR.
 
 ## Docs
 
+- [docs/architecture.md](docs/architecture.md) — end-to-end system and deployment architecture
 - [docs/api-contract.md](docs/api-contract.md) — the HTTP contract the frontend types are generated from
 - [docs/railway-deployment.md](docs/railway-deployment.md) — service topology, variables, and the platform gotchas
 - [docs/gowa-runbook.md](docs/gowa-runbook.md) — pairing a WhatsApp account; needs a physical phone

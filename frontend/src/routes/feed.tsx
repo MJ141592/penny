@@ -1,27 +1,38 @@
+/**
+ * The home screen: what is coming up, then everything that has happened, newest first.
+ *
+ * Both lists come from the live API now — `/api/upcoming` for the panel and a paginated
+ * `/api/feed` under it — and both render in the HOUSEHOLD's timezone, taken from the session
+ * rather than from the browser, so two siblings in two countries see the same day dividers over
+ * the same events.
+ *
+ * `counts.messages` is passed down because it is the only thing that can tell the two empty feeds
+ * apart: a family who has imported nothing needs to be sent to the import flow, and a family
+ * whose import found nothing must not be told to do it again.
+ *
+ * NO REPORTS QUERY HERE, deliberately. Reports are deferred, so `/api/reports` does not exist:
+ * calling it made the home screen fire a guaranteed 404 on every single mount, for a section
+ * that could never have anything in it. `useReports` and the "Reports" block below it come back
+ * together, in one diff, when the route ships. `queries.useReports` is left in place for that.
+ */
+
 import { Link } from 'react-router'
 
-import { useFeed, useHousehold, useReports, useUpcoming } from '../api/queries'
-import { formatDate, formatOccurredAt, groupByDay } from '../lib/datetime'
-import { eventFacts, eventKindLabel } from '../lib/events'
-import type { Event, EventKind } from '../types/api'
+import { useFeed, useSession, useUpcoming } from '../api/queries'
+import { EventFeed, UpcomingPanel } from '../components'
 import styles from './routes.module.css'
 
-const KIND_CLASS: Record<EventKind, string | undefined> = {
-  symptom: styles.kindSymptom,
-  appointment: styles.kindAppointment,
-  medication: styles.kindMedication,
-  note: styles.kindNote,
-}
+/** Only used before the session lands; every real render uses the household's own zone. */
+const FALLBACK_TIMEZONE = 'Europe/London'
 
 export function FeedRoute() {
-  const household = useHousehold()
+  const session = useSession()
   const feed = useFeed()
   const upcoming = useUpcoming()
-  const reports = useReports()
 
-  const timeZone = household?.timezone ?? 'Europe/London'
+  const household = session.data?.household
+  const timeZone = household?.timezone ?? FALLBACK_TIMEZONE
   const events = feed.data?.pages.flatMap((page) => page.events) ?? []
-  const days = groupByDay(events, timeZone, (event) => event.occurred_at)
 
   return (
     <>
@@ -32,123 +43,43 @@ export function FeedRoute() {
         </p>
       </div>
 
-      {/* UpcomingPanel slot — "upcoming" is a query (occurred_at &gt; now), not an entity. */}
-      <section className={styles.panel}>
-        <h2>Coming up</h2>
-        {upcoming.isPending ? <p className={styles.hint}>Loading…</p> : null}
-        {upcoming.data?.events.length === 0 ? (
-          <p className={styles.hint}>Nothing scheduled. An empty list is the common case.</p>
-        ) : null}
-        {upcoming.data?.events.map((event) => (
-          <div key={event.id} className={styles.panelRow}>
-            <span className={styles.meta}>{formatDate(event.occurred_at, timeZone)}</span>
-            <span className={styles.title}>{event.title}</span>
-          </div>
-        ))}
-      </section>
+      <UpcomingPanel
+        events={upcoming.data?.events}
+        timeZone={timeZone}
+        isPending={upcoming.isPending}
+        error={upcoming.error}
+      />
 
-      {reports.data && reports.data.length > 0 ? (
-        <section className={styles.section}>
-          <h2>Reports</h2>
-          {reports.data.map((report) => (
-            <div key={report.id} className={styles.panelRow}>
-              <Link to={`/reports/${report.id}`}>{report.title}</Link>
-              <span className={styles.meta}>{report.status}</span>
-            </div>
-          ))}
-        </section>
-      ) : null}
-
-      {feed.error ? <p className={styles.error}>{feed.error.message}</p> : null}
-      {feed.isPending ? <p className={styles.hint}>Loading the feed…</p> : null}
-
-      {feed.isSuccess && events.length === 0 ? (
-        <div className={styles.empty}>
-          <h2>Nothing here yet</h2>
-          <p>
-            Penny has no events for this household. <Link to="/import">Import a chat export</Link>{' '}
-            to fill in the history.
-          </p>
-        </div>
-      ) : null}
-
-      {days.map((day) => (
-        <section key={day.key}>
-          {/* DayDivider slot. */}
-          <h2 className={styles.dayHeading}>{day.heading}</h2>
-          {day.items.map((event) => (
-            <EventCard key={event.id} event={event} timeZone={timeZone} />
-          ))}
-        </section>
-      ))}
+      <EventFeed
+        events={events}
+        timeZone={timeZone}
+        isPending={feed.isPending}
+        error={feed.error}
+        onRetry={() => void feed.refetch()}
+        messageCount={session.data?.counts.messages}
+        editable
+      />
 
       {feed.hasNextPage ? (
-        <div className={styles.actions}>
+        <div className={styles.actions} style={{ marginTop: 20 }}>
           <button
             type="button"
             className={styles.button}
             disabled={feed.isFetchingNextPage}
             onClick={() => void feed.fetchNextPage()}
           >
-            {feed.isFetchingNextPage ? 'Loading…' : 'Load older events'}
+            {feed.isFetchingNextPage ? 'Loading…' : 'Load older entries'}
           </button>
         </div>
       ) : null}
+
+      {/* `next_before: null` is the server saying there is nothing older — say so, don't just stop. */}
+      {feed.isSuccess && !feed.hasNextPage && events.length > 0 ? (
+        <p className={styles.hint} style={{ marginTop: 20, textAlign: 'center' }}>
+          That is the whole history Penny has.{' '}
+          <Link to="/import">Import an older export</Link> to go further back.
+        </p>
+      ) : null}
     </>
-  )
-}
-
-/**
- * Placeholder for the real `FeedCard`. It renders every field the contract defines so the
- * fixtures are actually exercised; the component track replaces it with the styled version.
- */
-function EventCard({ event, timeZone }: { event: Event; timeZone: string }) {
-  const facts = eventFacts(event)
-  return (
-    <article className={styles.card}>
-      <div className={styles.cardTop}>
-        <span className={`${styles.kind} ${KIND_CLASS[event.kind] ?? ''}`}>
-          {eventKindLabel(event.kind)}
-        </span>
-        <span className={styles.title}>{event.title}</span>
-        <span className={styles.meta}>
-          {formatOccurredAt(event.occurred_at, event.occurred_at_precision, timeZone)}
-        </span>
-        {event.actor ? <span className={styles.meta}>· {event.actor.display_name}</span> : null}
-        {event.edited_at ? <span className={styles.edited}>edited</span> : null}
-      </div>
-
-      {event.body ? <p className={styles.body}>{event.body}</p> : null}
-
-      {facts.length > 0 ? (
-        <dl className={styles.facts}>
-          {facts.map((item) => (
-            <div key={item.label} style={{ display: 'contents' }}>
-              <dt className={styles.factLabel}>{item.label}</dt>
-              <dd className={styles.factValue}>{item.value}</dd>
-            </div>
-          ))}
-        </dl>
-      ) : null}
-
-      {/* SourceDisclosure slot — the verbatim quote carries nearly all the trust value. */}
-      {event.source_excerpts.length > 0 ? (
-        <details className={styles.excerpts}>
-          <summary>
-            {event.source_excerpts.length === 1
-              ? '1 message'
-              : `${event.source_excerpts.length} messages`}
-          </summary>
-          {event.source_excerpts.map((excerpt) => (
-            <blockquote key={excerpt.message_id} className={styles.quote}>
-              {excerpt.quote}
-              <div className={styles.quoteMeta}>
-                {excerpt.sender} · {formatDate(excerpt.sent_at, timeZone)}
-              </div>
-            </blockquote>
-          ))}
-        </details>
-      ) : null}
-    </article>
   )
 }

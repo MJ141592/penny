@@ -2,8 +2,10 @@
 
 interface ImportMetaEnv {
   /**
-   * `"false"` routes every call at the real backend; anything else (including unset) uses the
-   * hand-authored fixtures in `src/fixtures`. Default-on until M4 wires the API up.
+   * `"true"` serves every request from the hand-authored fixtures in `src/fixtures`, so the UI
+   * can be developed and demoed with no backend running. Anything else (including unset) talks
+   * to the real API at `/api` — that is the default, deliberately, so a forgotten env var cannot
+   * ship a build that quietly shows invented data.
    */
   readonly VITE_USE_FIXTURES?: string
 }

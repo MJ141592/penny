@@ -1,10 +1,11 @@
 import { NavLink, Navigate, Outlet, useLocation } from 'react-router'
 
+import { USE_FIXTURES } from '../api/client'
 import { useLogout, useSession } from '../api/queries'
 import styles from './routes.module.css'
 
 const NAV = [
-  { to: '/', label: 'Feed', end: true },
+  { to: '/', label: 'History', end: true },
   { to: '/import', label: 'Import' },
   { to: '/settings', label: 'Settings' },
 ]
@@ -26,6 +27,12 @@ export function Layout() {
 
   return (
     <div className={styles.shell}>
+      {/* Nobody should ever mistake the offline demo for their own family's history. */}
+      {USE_FIXTURES ? (
+        <p className={styles.demoBanner}>
+          Demo data — this build is not connected to a backend. Everything below is invented.
+        </p>
+      ) : null}
       <header className={styles.header}>
         <div className={styles.headerInner}>
           <NavLink to="/" className={styles.brand}>

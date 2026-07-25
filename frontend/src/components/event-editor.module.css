@@ -1,0 +1,125 @@
+/* The card, opened up. Same box and same rail, so the row does not jump when editing starts. */
+
+.editor {
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.row > * {
+  flex: 1 1 190px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.input {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text-h);
+  padding: 8px 10px;
+  min-width: 0;
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.textarea {
+  resize: vertical;
+  line-height: 145%;
+}
+
+.hint {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.error {
+  border: 1px solid var(--danger);
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  font-size: 14px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.button {
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-h);
+  border-radius: var(--radius);
+  padding: 7px 13px;
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  border-color: var(--accent-border);
+}
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.primary {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  font-weight: 600;
+}
+
+/* Destructive, but not shouting until it has been asked for once. */
+.quietDanger {
+  color: var(--danger);
+  background: transparent;
+}
+
+.danger {
+  color: var(--danger);
+  border-color: currentcolor;
+  background: var(--danger-bg);
+  font-weight: 600;
+}
+
+.confirm {
+  font-size: 14px;
+  color: var(--danger);
+}

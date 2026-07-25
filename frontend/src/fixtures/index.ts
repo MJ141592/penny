@@ -17,9 +17,12 @@ import type {
   Household,
   ImportAccepted,
   ImportStatus,
+  Member,
   Report,
   ReportSummary,
   Session,
+  WhatsappRelink,
+  WhatsappStatus,
 } from '../types/api'
 
 import type { Loosen } from './contract'
@@ -45,7 +48,7 @@ const ALL_REPORTS = CHECKED_REPORTS as unknown as Report[]
 const SCENARIO = new URLSearchParams(globalThis.location?.search ?? '').get('scenario')
 
 const DEMO_USERNAME = 'the-doyles'
-const DEMO_PASSWORD = 'correct-horse-battery-staple'
+let demoPassword = 'correct-horse-battery-staple'
 
 /** Enough delay that loading states are visible while developing, not enough to be annoying. */
 const LATENCY_MS = 140
@@ -53,8 +56,33 @@ const LATENCY_MS = 140
 // Mutable so edits and deletes survive a navigation the way the real backend would.
 let events: Event[] = structuredClone(SCENARIO === 'empty' ? (emptyFeed.events as Event[]) : ALL_EVENTS)
 let household: Household = { ...me.household }
+let people: Member[] = structuredClone(SCENARIO === 'empty' ? [] : (members as Member[]))
 let signedIn = true
 let importStartedAt: number | null = null
+
+/**
+ * The offline WhatsApp link. Starts unpaired-but-linked in the demo, because that is the state
+ * the settings screen has something to say about — a working link is one green line, a dead
+ * session is the whole re-pair affordance.
+ */
+let whatsapp: WhatsappStatus = {
+  linked: SCENARIO !== 'empty',
+  is_connected: false,
+  is_logged_in: false,
+  group_external_id: SCENARIO === 'empty' ? null : '120363000000000000@g.us',
+  gowa_available: true,
+  unlinked_groups:
+    SCENARIO === 'empty'
+      ? [
+          {
+            chat_id: '120363111111111111@g.us',
+            message_count: 412,
+            first_seen_at: '2026-07-01T09:00:00Z',
+            last_seen_at: '2026-07-24T21:47:00Z',
+          },
+        ]
+      : [],
+}
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -171,7 +199,7 @@ async function respond(method: string, path: string, query: URLSearchParams, ini
 
   if (method === 'POST' && head === 'auth' && second === 'login') {
     const body = await readJsonBody(init)
-    if (body.username !== DEMO_USERNAME || body.password !== DEMO_PASSWORD) {
+    if (body.username !== DEMO_USERNAME || body.password !== demoPassword) {
       // Identical for an unknown username and a wrong password — no user enumeration.
       return problem(401, 'Invalid username or password.')
     }
@@ -201,9 +229,59 @@ async function respond(method: string, path: string, query: URLSearchParams, ini
     return json(household)
   }
 
+  if (method === 'POST' && head === 'household' && second === 'password') {
+    const body = await readJsonBody(init)
+    if (body.current_password !== demoPassword) return problem(401, 'That is not the current password.')
+    if (typeof body.new_password !== 'string' || body.new_password.length < 12) {
+      return problem(422, 'The new password must be at least 12 characters.')
+    }
+    // Existing sessions stay valid: the cookie carries the household, not the password.
+    demoPassword = body.new_password
+    return noContent()
+  }
+
   if (method === 'GET' && head === 'feed') return handleFeed(query)
   if (method === 'GET' && head === 'upcoming') return handleUpcoming()
-  if (method === 'GET' && head === 'members') return json(members)
+
+  if (method === 'GET' && head === 'whatsapp' && second === 'status') return json(whatsapp)
+  if (method === 'POST' && head === 'whatsapp' && second === 'relink') {
+    // A 1x1 transparent PNG stands in for GOWA's QR image: the point of the demo is the
+    // countdown and the two-minute wait, not the pixels.
+    const relink: WhatsappRelink = {
+      available: true,
+      device_id: 'demo-device',
+      qr_link:
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      qr_duration: 30,
+      error: null,
+    }
+    return json(relink)
+  }
+  if (method === 'POST' && head === 'whatsapp' && second === 'link') {
+    const body = await readJsonBody(init)
+    const groupId = typeof body.group_external_id === 'string' ? body.group_external_id : ''
+    // The `@g.us` suffix is the only signal that a chat id is a group; there is no `is_group`.
+    if (!groupId.endsWith('@g.us')) {
+      return problem(400, 'That is not a group chat id (it must end in @g.us).')
+    }
+    whatsapp = { ...whatsapp, linked: true, group_external_id: groupId }
+    return noContent()
+  }
+
+  if (method === 'GET' && head === 'members') return json(people)
+  if (method === 'POST' && head === 'members' && second) {
+    const body = await readJsonBody(init)
+    const into = people.find((candidate) => candidate.id === body.into_member_id)
+    const from = people.find((candidate) => candidate.id === second)
+    if (!into || !from) return notFound()
+    if (into.id === from.id) return problem(400, 'A person cannot be merged into themselves.')
+    // The survivor keeps whichever of the two ids is non-null, same as the real merge.
+    into.message_count += from.message_count
+    into.wa_jid = into.wa_jid ?? from.wa_jid
+    into.wa_lid = into.wa_lid ?? from.wa_lid
+    people = people.filter((candidate) => candidate.id !== from.id)
+    return noContent()
+  }
 
   if (head === 'events' && second) {
     if (method === 'PATCH') return handlePatchEvent(second, init)

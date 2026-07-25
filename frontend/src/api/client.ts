@@ -1,19 +1,22 @@
 /**
  * The single door every HTTP call goes through.
  *
- * One place, so that flipping M3's fixtures off for M4's real backend is a one-line change
- * (`VITE_USE_FIXTURES=false`) rather than an edit at every call site. The fixture layer answers
- * with a real `Response`, so both modes share one parsing and error path — the code that runs in
- * the demo is the code that runs in production, minus the transport.
+ * One place, so that the fixture/real split is one `if` rather than an edit at every call site.
+ * The fixture layer answers with a real `Response`, so both modes share one parsing and error
+ * path — the code that runs in the demo is the code that runs in production, minus the transport.
  */
 
 import { fixtureRespond } from '../fixtures'
 
 /**
- * Default TRUE for now: M3 has no backend. M4 sets `VITE_USE_FIXTURES=false` in the deployed
- * build. Vite inlines `import.meta.env` at build time, so this is a compile-time constant.
+ * Default FALSE: the backend exists, so every build talks to it unless somebody deliberately asks
+ * for the offline demo with `VITE_USE_FIXTURES=true`. Opt-in rather than opt-out, because the
+ * failure mode of the old default was silent — a deploy that forgot the env var would have served
+ * one invented family's health history to everybody and looked completely fine doing it.
+ *
+ * Vite inlines `import.meta.env` at build time, so this is a compile-time constant.
  */
-export const USE_FIXTURES = (import.meta.env.VITE_USE_FIXTURES ?? 'true') !== 'false'
+export const USE_FIXTURES = import.meta.env.VITE_USE_FIXTURES === 'true'
 
 export const API_BASE = '/api'
 
@@ -25,18 +28,34 @@ export const API_BASE = '/api'
  */
 export class ApiError extends Error {
   readonly status: number
+  /**
+   * The path it came from, carried because a 401 does not mean the same thing everywhere. On
+   * `/auth/login` and `/household/password` a 401 is the answer to a password in the *body*
+   * ("that is not your password"); anywhere else it means the session cookie is gone. Without
+   * this, mistyping your current password on the settings screen signs you out — which is both
+   * baffling and loses whatever you were typing.
+   */
+  readonly path: string
 
-  constructor(status: number, detail: string) {
+  constructor(status: number, detail: string, path = '') {
     super(detail)
     this.name = 'ApiError'
     this.status = status
+    this.path = path
   }
 
   /** 401 is "you are not signed in" — the cue to redirect to /login, never to retry. */
   get isUnauthenticated(): boolean {
     return this.status === 401
   }
+
+  /** True when the 401 answers a password we sent, rather than a cookie we didn't. */
+  get isCredentialCheck(): boolean {
+    return CREDENTIAL_PATHS.some((candidate) => this.path.startsWith(candidate))
+  }
 }
+
+const CREDENTIAL_PATHS = ['/auth/login', '/household/password']
 
 export interface ApiRequest {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
@@ -99,7 +118,7 @@ export async function api<T>(path: string, request: ApiRequest = {}): Promise<T>
     ? await fixtureRespond(url, init)
     : await fetch(`${API_BASE}${url}`, init)
 
-  if (!response.ok) throw new ApiError(response.status, await readDetail(response))
+  if (!response.ok) throw new ApiError(response.status, await readDetail(response), path)
   if (response.status === 204) return undefined as T
   return (await response.json()) as T
 }

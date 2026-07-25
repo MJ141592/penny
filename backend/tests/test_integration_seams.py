@@ -11,6 +11,7 @@ metadata rather than a connection.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from collections.abc import Callable
@@ -313,31 +314,40 @@ def test_a_nul_byte_in_an_export_never_reaches_text_or_payload() -> None:
 # --- seam 9: /api/health must not reach the database ------------------------------------
 
 
-def test_importing_the_app_does_not_import_the_database_layer() -> None:
-    """SEAM 9. A subprocess, because this test session has already imported app.models.
+def test_health_answers_when_the_database_is_unreachable() -> None:
+    """SEAM 9. The property that matters: a Postgres blip must not fail the healthcheck.
 
-    A DB-dependent healthcheck turns a Postgres blip into a Railway rollback loop, and the
-    cheapest way to guarantee `/api/health` cannot touch the database is for the module graph
-    behind it not to contain one.
+    This used to assert that `app.main`'s import graph contained no `sqlalchemy`, which was a
+    cheap proxy while main.py held two routes. It stopped being achievable the moment real
+    routers were wired in — every one of them imports the models — and it was only ever a proxy
+    anyway. What actually causes the Railway rollback loop is the health HANDLER issuing a query,
+    so assert that directly, in a subprocess against an unroutable address so a stray connection
+    would hang rather than quietly succeed against localhost.
     """
-    # Tagged and read off the last line: importing app.main calls configure_logging(), so
-    # startup JSON shares this stdout. Comparing the whole stream would fail on a log line.
     probe = (
-        "import sys, app.main;"
-        "banned = {'app.db', 'app.models', 'sqlalchemy', 'asyncpg'};"
-        "print('BANNED_PRESENT=' + repr(sorted(banned & set(sys.modules))))"
+        "from fastapi.testclient import TestClient;"
+        "from app.main import app;"
+        "r = TestClient(app).get('/api/health');"
+        "print('HEALTH=' + str(r.status_code) + r.text)"
     )
     result = subprocess.run(
         [sys.executable, "-c", probe],
         capture_output=True,
         text=True,
         cwd=Path(__file__).resolve().parents[1],
+        # 10.255.255.1 is unroutable: a query would time out, not connect to a dev database.
+        env={
+            **os.environ,
+            "DATABASE_URL": "postgresql://nobody:nobody@10.255.255.1:5432/nope",
+            "PENNY_TEST_DATABASE_URL": "",
+        },
         check=True,
+        timeout=60,
     )
     verdict = next(
-        line for line in reversed(result.stdout.splitlines()) if line.startswith("BANNED_PRESENT=")
+        line for line in reversed(result.stdout.splitlines()) if line.startswith("HEALTH=")
     )
-    assert verdict == "BANNED_PRESENT=[]", result.stdout
+    assert verdict == 'HEALTH=200{"status":"ok"}', result.stdout
 
 
 def test_health_returns_ok_without_a_database_url(

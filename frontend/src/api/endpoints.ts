@@ -17,6 +17,8 @@ import type {
   ReportSummary,
   Session,
   UpcomingPage,
+  WhatsappRelink,
+  WhatsappStatus,
 } from '../types/api'
 import { api } from './client'
 
@@ -36,6 +38,44 @@ export type HouseholdPatch = Partial<Pick<Household, 'name' | 'care_recipient_na
 
 export function patchHousehold(patch: HouseholdPatch): Promise<Household> {
   return api('/household', { method: 'PATCH', json: patch })
+}
+
+/**
+ * Existing sessions survive deliberately: the cookie carries `household_id`, not the password, so
+ * changing it does not sign the rest of the family out mid-conversation. Re-sharing the new
+ * passphrase is a human job.
+ */
+export function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  return api('/household/password', {
+    method: 'POST',
+    json: { current_password: currentPassword, new_password: newPassword },
+  })
+}
+
+export function getWhatsappStatus(signal?: AbortSignal): Promise<WhatsappStatus> {
+  return api('/whatsapp/status', { signal })
+}
+
+/** 400 when the id isn't a group: there is no `is_group` flag, the `@g.us` suffix is the signal. */
+export function linkWhatsappGroup(groupExternalId: string): Promise<void> {
+  return api('/whatsapp/link', { method: 'POST', json: { group_external_id: groupExternalId } })
+}
+
+/**
+ * Ask the bridge for a fresh pairing QR. **This blocks for up to two minutes** — the bridge waits
+ * for whatsmeow to produce the code — so it is a button with a spinner, never a poll, and never
+ * shares a query with `/whatsapp/status`. 409 means one request is already in flight.
+ */
+export function requestWhatsappRelink(): Promise<WhatsappRelink> {
+  return api('/whatsapp/relink', { method: 'POST' })
+}
+
+/**
+ * `id` is absorbed into `intoMemberId`: messages and events re-point and the survivor keeps
+ * whichever of `wa_jid`/`wa_lid` is non-null. Attribution is fixed retroactively, with no LLM run.
+ */
+export function mergeMember(id: string, intoMemberId: string): Promise<void> {
+  return api(`/members/${id}/merge`, { method: 'POST', json: { into_member_id: intoMemberId } })
 }
 
 export interface FeedQuery {

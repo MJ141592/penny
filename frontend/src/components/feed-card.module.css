@@ -185,3 +185,26 @@
   color: var(--text-h);
   overflow-wrap: anywhere;
 }
+
+/* Quiet until wanted: an edit control on every row must not compete with the row's content. */
+.edit {
+  flex: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  border-radius: var(--radius);
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.card:hover .edit,
+.edit:focus-visible {
+  border-color: var(--border);
+  color: var(--text-h);
+}
+
+.edit:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

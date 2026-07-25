@@ -20,9 +20,11 @@ import { SourceDisclosure } from './source-disclosure'
 export interface FeedCardProps {
   event: Event
   timeZone: string
+  /** Absent on read-only surfaces (a report's citations), so the card has no edit affordance. */
+  onEdit?: (() => void) | undefined
 }
 
-export function FeedCard({ event, timeZone }: FeedCardProps) {
+export function FeedCard({ event, timeZone, onEdit }: FeedCardProps) {
   const look = treatment(event)
   // The headline signal is repeated verbatim in `eventFacts`; show it once, in the louder place.
   const facts = eventFacts(event).filter((item) => !look.omitFacts.includes(item.label))
@@ -46,6 +48,18 @@ export function FeedCard({ event, timeZone }: FeedCardProps) {
         >
           {formatOccurredAt(event.occurred_at, event.occurred_at_precision, timeZone)}
         </time>
+        {onEdit ? (
+          <button
+            type="button"
+            className={styles.edit}
+            onClick={onEdit}
+            // The title is the only thing distinguishing twenty identical "Edit" buttons to a
+            // screen reader, so it goes in the accessible name rather than a tooltip.
+            aria-label={`Edit “${event.title}”`}
+          >
+            Edit
+          </button>
+        ) : null}
       </div>
 
       <h3 className={styles.title}>{event.title}</h3>
