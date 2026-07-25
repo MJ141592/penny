@@ -57,3 +57,10 @@ npm run dev
 ```
 
 The dev server runs at http://localhost:5173 and proxies `/api` requests to the backend.
+
+The live smoke test hits the real OpenAI API (and costs a fraction of a cent):
+
+```sh
+cd backend
+RUN_LIVE_OPENAI_TESTS=1 uv run pytest -m live
+```
