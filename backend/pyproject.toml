@@ -19,7 +19,7 @@ dependencies = [
     "asyncpg>=0.30",
     "alembic>=1.13",
     # argon2 password hashing; passlib is unmaintained.
-    "pwdlib[argon2]>=0.2",
+    "pwdlib[argon2]>=0.3.0",
     # Signs the session cookie carrying household_id.
     "itsdangerous>=2.2",
     # Multipart form parsing for the .txt export upload.
