@@ -11,24 +11,24 @@ of it.
 
 **Login is rate limited.** One shared password is a single guessable secret with no lockout
 story and no second factor, so the only thing standing between a dictionary and a family's
-health record is how many guesses per minute an attacker gets.
+health record is how many guesses per minute an attacker gets. *Who* an attempt is charged to
+and *where* the count lives are both in `app.ratelimit`; this file owns only the wording and
+the status code.
 """
 
 from __future__ import annotations
 
 import logging
-import time
-from collections import deque
 from functools import lru_cache
 
 import sqlalchemy as sa
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
-from app.config import get_settings
 from app.deps import CurrentHousehold, SessionDep
 from app.errors import UnauthorizedError
 from app.models import Event, Household, Message
+from app.ratelimit import client_ip, login_limiter
 from app.schemas import SessionCounts, SessionOut, to_household
 from app.security import (
     clear_session_cookie,
@@ -59,12 +59,6 @@ def _rate_limited_detail(retry_after: int) -> str:
     return f"Too many attempts. Try again in about {minutes} minutes."
 
 
-RATE_LIMIT_MAX_ATTEMPTS = 10
-RATE_LIMIT_WINDOW_SECONDS = 15 * 60
-# Bounds the memory a spray across forged X-Forwarded-For values can cost us.
-RATE_LIMIT_MAX_TRACKED_IPS = 4096
-
-
 class LoginRequest(BaseModel):
     # Bounded, because both values go into an argon2 call: an unbounded password is a free
     # CPU-burn endpoint.
@@ -91,76 +85,12 @@ def _dummy_password_hash() -> str:
     return hash_password("penny-nonexistent-account-placeholder")
 
 
-class _SlidingWindowLimiter:
-    """Per-IP sliding window, in process memory.
-
-    KNOWN BOUNDARY, not an oversight: **this stops working with more than one replica.** Each
-    process keeps its own counters, so N replicas behind a load balancer give an attacker N
-    times the budget, and a rolling deploy resets it. Penny runs as a single Railway instance
-    today; the moment it does not, this has to move to Postgres or Redis. It is here rather
-    than nowhere because a single shared password with no limiter at all is the worse failure,
-    and it is here rather than in a library because the whole thing is fifteen lines.
-    """
-
-    def __init__(self, max_attempts: int, window_seconds: float) -> None:
-        self._max = max_attempts
-        self._window = window_seconds
-        self._hits: dict[str, deque[float]] = {}
-
-    def _prune(self, key: str, now: float) -> deque[float]:
-        hits = self._hits.setdefault(key, deque())
-        cutoff = now - self._window
-        while hits and hits[0] <= cutoff:
-            hits.popleft()
-        return hits
-
-    def retry_after(self, key: str, now: float | None = None) -> int | None:
-        """Seconds to wait if the caller is over the limit, else None. Does not record."""
-        now = time.monotonic() if now is None else now
-        hits = self._prune(key, now)
-        if len(hits) < self._max:
-            return None
-        return max(1, int(hits[0] + self._window - now) + 1)
-
-    def record(self, key: str, now: float | None = None) -> None:
-        now = time.monotonic() if now is None else now
-        if len(self._hits) >= RATE_LIMIT_MAX_TRACKED_IPS and key not in self._hits:
-            # Drop whatever is coldest rather than growing without bound. Evicting a real
-            # attacker's bucket is possible but requires already sustaining thousands of
-            # distinct source addresses, at which point the limiter is not the defence.
-            self._hits.pop(next(iter(self._hits)), None)
-        self._prune(key, now).append(now)
-
-    def reset(self, key: str) -> None:
-        """Called on a successful login: a family that fat-fingers twice then gets in is not
-        one attempt away from being locked out for a quarter of an hour."""
-        self._hits.pop(key, None)
-
-
-_login_limiter = _SlidingWindowLimiter(RATE_LIMIT_MAX_ATTEMPTS, RATE_LIMIT_WINDOW_SECONDS)
-
-
-def _client_key(request: Request) -> str:
-    """The identity the limiter counts against.
-
-    In production Railway terminates TLS and proxies, so `request.client.host` is the router
-    for every caller and counting on it would let one attacker lock out the whole world. The
-    leftmost X-Forwarded-For is the client's own claim and is spoofable — the trade we accept
-    is "an attacker can rotate the header to get more attempts" over "one attacker denies
-    service to every family". Off production we use the peer address, because there is no
-    proxy and trusting the header would make the limiter trivially bypassable in tests.
-    """
-    if get_settings().env == "production":
-        forwarded = request.headers.get("x-forwarded-for")
-        if forwarded:
-            return forwarded.split(",")[0].strip()[:64]
-    return request.client.host if request.client else "unknown"
-
-
 @router.post("/auth/login", status_code=204)
 async def login(payload: LoginRequest, request: Request, session: SessionDep) -> Response:
-    key = _client_key(request)
-    retry_after = _login_limiter.retry_after(key)
+    # Charged and checked in one statement, before any argon2 work: an endpoint that hashes
+    # first and rejects second is still a free 50ms of CPU per request.
+    ip = client_ip(request)
+    retry_after = await login_limiter.hit(ip)
     if retry_after is not None:
         logger.warning("auth.login_rate_limited", extra={"retry_after": retry_after})
         raise HTTPException(
@@ -168,7 +98,6 @@ async def login(payload: LoginRequest, request: Request, session: SessionDep) ->
             detail=_rate_limited_detail(retry_after),
             headers={"Retry-After": str(retry_after)},
         )
-    _login_limiter.record(key)
 
     household = (
         await session.execute(sa.select(Household).where(Household.username == payload.username))
@@ -184,10 +113,12 @@ async def login(payload: LoginRequest, request: Request, session: SessionDep) ->
         logger.info("auth.login_failed")
         raise UnauthorizedError(INVALID_CREDENTIALS_DETAIL)
 
-    _login_limiter.reset(key)
+    await login_limiter.reset(ip)
     logger.info("auth.login_ok", extra={"household_id": str(household.id)})
     response = Response(status_code=204)
-    set_session_cookie(response, household.id)
+    # The version is what makes the cookie revocable: a password change or "sign out
+    # everywhere" bumps it, and every cookie minted before the bump stops verifying.
+    set_session_cookie(response, household.id, household.session_version)
     return response
 
 

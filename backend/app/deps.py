@@ -15,6 +15,10 @@ Two consequences worth stating:
 * A cookie that is valid but names a household that no longer exists is a **401**, not a 500
   and not a 404. The session is genuinely no longer usable, and the client's rule for 401 is
   exactly right: clear the cache and go to /login.
+* A cookie that is valid but carries a stale `session_version` is the same 401, byte for byte.
+  That is the whole of session revocation: a password change or "sign out everywhere" bumps
+  `households.session_version`, and every cookie minted before the bump fails this comparison.
+  It has to happen HERE rather than in each route, for the same reason tenancy does.
 """
 
 from __future__ import annotations
@@ -49,12 +53,22 @@ class HouseholdCtx:
 
 
 async def require_household(request: Request, session: SessionDep) -> HouseholdCtx:
-    """401 when the cookie is absent, unsigned, expired, or names an unknown household."""
-    household_id = read_session_cookie(request.cookies.get(SESSION_COOKIE_NAME))
+    """401 when the cookie is absent, unsigned, expired, revoked, or names an unknown household.
+
+    All five raise the identical `UnauthorizedError`, deliberately. "Your session was revoked"
+    would tell an attacker holding a stolen cookie that the household exists and that someone
+    just changed the password.
+    """
+    token = request.cookies.get(SESSION_COOKIE_NAME)
+    household_id = read_session_cookie(token)
     if household_id is None:
         raise UnauthorizedError()
     household = await session.get(Household, household_id)
     if household is None:
+        raise UnauthorizedError()
+    # The second read is the revocation check, and it has to be second: `session_version` lives
+    # on the row, and the row is only loadable once the first read has named it.
+    if read_session_cookie(token, current_version=household.session_version) is None:
         raise UnauthorizedError()
     return HouseholdCtx(id=household.id, household=household)
 

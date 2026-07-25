@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.errors import install_error_handlers
+from app.headers import install_security_headers
 from app.logging import configure_logging, make_request_log_middleware
 from app.routers import (
     ai,
@@ -17,12 +18,19 @@ from app.routers import (
     whatsapp,
 )
 from app.spa import mount_spa
+from app.startup_checks import enforce_startup_checks
 
 settings = get_settings()
 
 # Before the app is built, so anything logged during startup is already JSON and
 # already redacted.
 configure_logging()
+
+# Fail CLOSED, at import, before anything binds a port. In production this refuses to boot on a
+# secret still set to a placeholder published in this repository's .env.example — a public string
+# that would let anyone forge a session cookie for any household. Warn-only outside production,
+# or every contributor's first run breaks.
+enforce_startup_checks(settings)
 
 app = FastAPI(title="Penny API")
 
@@ -39,6 +47,9 @@ if settings.env != "production":
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+# Before the routers, so every response carries them — including error envelopes and the SPA.
+install_security_headers(app, settings)
 
 app.include_router(health.router)
 app.include_router(ai.router)

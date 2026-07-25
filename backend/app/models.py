@@ -88,6 +88,18 @@ class Household(Base):
     timezone: Mapped[str] = mapped_column(
         sa.Text, nullable=False, server_default=sa.text("'Europe/London'"), default="Europe/London"
     )
+    # THE REVOCATION MECHANISM. The signed cookie carries the version it was minted with, and
+    # `require_household` 401s when it no longer matches this column. Bumping it is the only way
+    # to invalidate a stolen or stranded 30-day cookie without rotating `SESSION_SECRET`, which
+    # signs every household out of every device. Bumped by a password change and by
+    # POST /api/household/sign-out-everywhere.
+    #
+    # Default 1, not 0, and NOT NULL: cookies minted before this column existed carry no version
+    # at all and are read as version 1, so the deploy that adds it signs nobody out — and the
+    # first bump revokes them along with everything else.
+    session_version: Mapped[int] = mapped_column(
+        sa.Integer, nullable=False, server_default=sa.text("1"), default=1
+    )
     created_at: Mapped[datetime] = _created_at()
     updated_at: Mapped[datetime] = _updated_at()
 

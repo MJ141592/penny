@@ -6,6 +6,7 @@ recipient, so "account settings" and "household settings" are the same screen.
 
 from __future__ import annotations
 
+import logging
 from functools import lru_cache
 from zoneinfo import available_timezones
 
@@ -20,7 +21,14 @@ from app.schemas import (
     PasswordChange,
     to_household,
 )
-from app.security import clear_session_cookie, hash_password, verify_password
+from app.security import (
+    clear_session_cookie,
+    hash_password,
+    set_session_cookie,
+    verify_password,
+)
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["household"])
 
@@ -64,11 +72,17 @@ async def change_password(
     ctx: CurrentHousehold,
     session: SessionDep,
 ) -> Response:
-    """Change the shared passphrase. Existing sessions stay valid, deliberately.
+    """Change the shared passphrase. **Every other device is signed out.**
 
-    The cookie carries `household_id`, not the password, so nobody gets signed out — the
-    family is not locked out of their own care record by one person changing a setting.
-    Re-sharing the new passphrase is a conversation, not a feature.
+    This used to leave existing sessions alone, on the grounds that the cookie carries
+    `household_id` and not the password. That made a password change useless as a remedy: the
+    reason a family changes a shared passphrase is that someone has it who shouldn't, and a
+    30-day cookie in that someone's browser outlived the change. Bumping `session_version`
+    revokes every cookie minted before this moment.
+
+    The device doing the change keeps working: its cookie is re-minted here at the new version.
+    Signing out the person who just proved they know the current password would only teach
+    families to avoid the button.
     """
     household = ctx.household
     if not verify_password(body.current_password, household.password_hash):
@@ -78,8 +92,35 @@ async def change_password(
             f"Your new password must be at least {MIN_PASSWORD_CHARS} characters."
         )
     household.password_hash = hash_password(body.new_password)
+    household.session_version += 1
+    await session.flush()  # never commit: get_session owns the transaction
+    response = Response(status_code=status.HTTP_204_NO_CONTENT)
+    set_session_cookie(response, household.id, household.session_version)
+    return response
+
+
+@router.post("/household/sign-out-everywhere", status_code=status.HTTP_204_NO_CONTENT)
+async def sign_out_everywhere(ctx: CurrentHousehold, session: SessionDep) -> Response:
+    """Revoke every session this household has, including the one making the request.
+
+    The button for "I left it signed in on the hospital computer" / "Dad's phone was stolen".
+    Unlike the password change this signs the caller out too — "everywhere" that quietly meant
+    "everywhere except here" would be a lie about a security control, and re-logging in with a
+    passphrase you already know costs one screen.
+
+    The passphrase is unchanged, so anyone who knows it can sign back in. Changing it is the
+    other button, and the UI says so.
+    """
+    household = ctx.household
+    household.session_version += 1
     await session.flush()
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    logger.info(
+        "household.sessions_revoked",
+        extra={"household_id": str(household.id), "session_version": household.session_version},
+    )
+    response = Response(status_code=status.HTTP_204_NO_CONTENT)
+    clear_session_cookie(response)
+    return response
 
 
 @router.delete("/household", status_code=status.HTTP_204_NO_CONTENT)

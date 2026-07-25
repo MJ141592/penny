@@ -2,6 +2,11 @@
 
 **The order of operations in `gowa_webhook` is load-bearing.** Reading it top to bottom:
 
+0. **A cap, then raw bytes, then HMAC, then parse.** This door is unauthenticated until the
+   HMAC is checked, so the bytes are counted as they arrive and the read is abandoned the
+   moment the running total passes `MAX_BODY_BYTES` — see `read_capped_body`. Buffering the
+   whole body first and measuring it afterwards is the same bug with a nicer error message.
+
 1. **Raw bytes, then HMAC, then parse.** The signature covers the exact bytes GOWA sent. Parsing
    first and re-serialising the object to hash it compares a body we invented against a
    signature for a body we were given — whitespace, key order and unicode escaping all differ,
@@ -54,7 +59,7 @@ from app import gowa
 from app.config import get_settings
 from app.db import get_sessionmaker
 from app.deps import SessionDep
-from app.errors import UnauthorizedError
+from app.errors import PennyError, UnauthorizedError
 from app.extraction.service import run_extraction_for_household
 from app.ingest.contract import (
     GROUP_JID_SUFFIX,
@@ -76,6 +81,27 @@ SIGNATURE_PREFIX = "sha256="
 # published in a public repo's README is not a secret; accepting it would mean anyone who can
 # reach the container can inject messages into a family's health record.
 FORBIDDEN_SECRETS = frozenset({"", "secret", "changeme"})
+
+# The most body we will hold in memory for a caller who has not authenticated yet. A GOWA
+# message event is a small JSON object — the largest one observed live is under 4 KB, and the
+# ceiling is a long text message plus metadata — so 256 KB is roughly sixty times the real
+# worst case and still small enough that two gunicorn workers cannot be pushed over by it.
+MAX_BODY_BYTES = 256 * 1024
+CONTENT_LENGTH_HEADER = "content-length"
+
+
+class PayloadTooLargeError(PennyError):
+    """413 — the body passed `MAX_BODY_BYTES` and the rest of it was never read.
+
+    A `PennyError` subclass so it renders through the one error envelope, and 413 rather than a
+    200 with a reason because it is the one refusal that a retry *can* fix: GOWA re-sending the
+    same oversized body is harmless, and if a body this large is ever legitimate we want the
+    retries in the log rather than a silent drop.
+    """
+
+    status_code = 413
+    detail = "That request body was too large."
+
 
 # Timestamps above this are milliseconds, not seconds. 1e11 seconds is the year 5138 and 1e11
 # milliseconds is 1973, so the boundary is unambiguous for anything WhatsApp will ever send.
@@ -167,6 +193,61 @@ class GowaWebhookEnvelope(BaseModel):
     payload: GowaMessagePayload | None = None
 
 
+async def read_capped_body(request: Request, limit: int = MAX_BODY_BYTES) -> bytes:
+    """The raw body, or `PayloadTooLargeError` before `limit` bytes are ever held.
+
+    `await request.body()` allocates whatever the caller decides to send and only then hands it
+    over to be authenticated, which makes an unauthenticated stranger's `Content-Length` the
+    memory budget of a worker. There are two of them. So the body is consumed a chunk at a time
+    and the read is abandoned mid-stream: the offending chunk is counted but never appended, so
+    the buffer never exceeds `limit` and the rest of the upload is simply never read.
+
+    What is returned is the exact bytes that were counted, unnormalised and un-re-serialised,
+    because these are the bytes the HMAC covers. Anything that rebuilt the body here — even
+    `b"".join` of a re-parsed structure — would be verifying a body we invented.
+
+    `Content-Length` is checked first purely to fail before opening the stream at all, and it is
+    a HINT: it is absent on a chunked upload and a lie whenever the sender wants it to be. It can
+    only cause an early rejection, never an acceptance; the running total is what actually
+    enforces the cap.
+    """
+    declared = _declared_length(request)
+    if declared is not None and declared > limit:
+        log.warning(
+            "webhook.body_too_large",
+            extra={"stage": "content_length", "declared": declared, "limit": limit},
+        )
+        raise PayloadTooLargeError
+
+    body = bytearray()
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > limit:
+            # Note the ordering: counted, refused, and only the chunks BELOW the cap were ever
+            # kept. `body.extend(chunk)` before this check would buffer one transport read past
+            # the limit, and moving the check after the loop is the bug being fixed.
+            log.warning(
+                "webhook.body_too_large",
+                extra={"stage": "stream", "read_bytes": total, "limit": limit},
+            )
+            raise PayloadTooLargeError
+        body.extend(chunk)
+    return bytes(body)
+
+
+def _declared_length(request: Request) -> int | None:
+    """`Content-Length` as an int, or None when it is absent or not a number."""
+    raw = request.headers.get(CONTENT_LENGTH_HEADER)
+    if raw is None:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        # An unparsable header is evidence of nothing. The counter above still decides.
+        return None
+
+
 def verify_signature(raw_body: bytes, header: str | None) -> None:
     """HMAC-SHA256 over the RAW BODY BYTES, constant-time. Raises 401; never returns a bool.
 
@@ -228,8 +309,10 @@ async def gowa_webhook(
     session: SessionDep,
 ) -> dict[str, Any]:
     """Ingest one GOWA message event. Fast, idempotent, and 200 for everything retry cannot fix."""
-    # (a) RAW BYTES FIRST. Nothing above this line may parse them.
-    raw = await request.body()
+    # (a) RAW BYTES FIRST, AND ONLY SO MANY OF THEM. Nothing above this line may parse them, and
+    # nothing below it sees a body larger than MAX_BODY_BYTES. The signature is checked over the
+    # exact bytes that were counted.
+    raw = await read_capped_body(request)
     verify_signature(raw, request.headers.get(SIGNATURE_HEADER))
 
     # (b) Only now is it safe to spend cycles on the body.

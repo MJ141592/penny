@@ -1,0 +1,100 @@
+# Dependabot for a one-person project.
+#
+# The failure mode to avoid is not "missed an update" — it is twenty PRs a week that nobody reads,
+# which is how a real security PR gets closed unread along with the noise. So: weekly, everything
+# in an ecosystem grouped into one PR, and a hard cap on open PRs. Majors are deliberately left out
+# of the groups so a breaking change arrives on its own and gets read on its own.
+#
+# Security updates are grouped separately from version updates so a "security" PR title always
+# means an advisory, never a routine bump.
+#
+# Turning this file on does NOT enable Dependabot alerts — that is a repository setting a human has
+# to click. See docs/security.md.
+version: 2
+
+updates:
+  # Backend: pyproject.toml + uv.lock. The "uv" ecosystem is the one that understands uv.lock;
+  # "pip" would leave the lockfile stale and CI runs `uv sync --frozen`, so it would just go red.
+  - package-ecosystem: "uv"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "deps(backend)"
+    groups:
+      backend-minor-patch:
+        applies-to: version-updates
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+      backend-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  # Frontend: package.json + package-lock.json.
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "deps(frontend)"
+    groups:
+      frontend-minor-patch:
+        applies-to: version-updates
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+      frontend-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  # Actions are the supply chain with the most direct access to the repo: a compromised action runs
+  # with the workflow token. Everything here is pinned to a major tag, so these PRs are small.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "deps(actions)"
+    groups:
+      actions:
+        applies-to: version-updates
+        patterns: ["*"]
+      actions-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  # The production image: python/node base images in the root Dockerfile.
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "deps(docker)"
+    groups:
+      docker:
+        applies-to: version-updates
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+      docker-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  # docker-compose.yml is local-development-only (Postgres), but a stale local Postgres image is
+  # still worth a monthly nudge. Monthly, not weekly — it does not ship.
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 1
+    commit-message:
+      prefix: "deps(compose)"
+    groups:
+      compose:
+        patterns: ["*"]

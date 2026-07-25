@@ -64,3 +64,65 @@ jobs:
       # `tsc -b && vite build` — type errors under strict are the frontend's only test suite for now.
       - name: Build
         run: npm run build
+
+      # `npm audit --audit-level=high` is all-or-nothing: it either gets ignored or turns CI red for
+      # advisories already reviewed and accepted, which becomes the same thing a week later. This
+      # gate fails only on high/critical advisories that are NOT in ACCEPTED, so red here always
+      # means something new arrived. ACCEPTED is empty today — every advisory found in the security
+      # review was fixed rather than waived — and each future entry needs its reason recorded in
+      # docs/security.md next to the id.
+      - name: Audit (fails only on new high advisories)
+        run: |
+          npm audit --json > /tmp/npm-audit.json || true
+          cat > /tmp/audit-gate.mjs <<'GATE'
+          import { readFileSync } from 'node:fs'
+
+          // id -> why it is accepted. Keep in step with docs/security.md.
+          const ACCEPTED = new Map([
+            // ['GHSA-xxxx-xxxx-xxxx', 'why it does not apply here + when to revisit'],
+          ])
+
+          let report
+          try {
+            report = JSON.parse(readFileSync(process.argv[2], 'utf8'))
+          } catch {
+            report = null
+          }
+          // A registry outage must not be reported as "no vulnerabilities" — say so instead.
+          if (!report?.vulnerabilities) {
+            console.log('::warning::npm audit produced no report (registry unreachable?) — gate skipped')
+            process.exit(0)
+          }
+
+          const found = new Map()
+          for (const vuln of Object.values(report.vulnerabilities)) {
+            for (const via of vuln.via ?? []) {
+              // String entries mean "vulnerable because a dependency is". The advisory itself
+              // appears as an object under the package it was filed against, so counting only
+              // objects collapses one advisory's whole dependency chain into one finding.
+              if (typeof via === 'string') continue
+              if (via.severity !== 'high' && via.severity !== 'critical') continue
+              const id = via.url?.split('/').pop() || `npm-advisory-${via.source}`
+              if (!found.has(id)) found.set(id, { id, ...via })
+            }
+          }
+
+          const unaccepted = [...found.values()].filter((a) => !ACCEPTED.has(a.id))
+          const stale = [...ACCEPTED.keys()].filter((id) => !found.has(id))
+
+          for (const id of stale) {
+            console.log(`::warning::${id} is no longer reported — drop it from this gate and docs/security.md`)
+          }
+          for (const a of found.values()) {
+            if (ACCEPTED.has(a.id)) console.log(`accepted: ${a.id} ${a.name} — ${ACCEPTED.get(a.id)}`)
+          }
+          for (const a of unaccepted) {
+            console.log(`::error::NEW ${a.severity} advisory ${a.id} in ${a.name}: ${a.title} (${a.url})`)
+          }
+
+          console.log(
+            `high/critical advisories: ${found.size} total, ${found.size - unaccepted.length} accepted, ${unaccepted.length} new`,
+          )
+          process.exit(unaccepted.length ? 1 : 0)
+          GATE
+          node /tmp/audit-gate.mjs /tmp/npm-audit.json

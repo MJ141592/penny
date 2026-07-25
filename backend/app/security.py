@@ -1,10 +1,18 @@
 """Password hashing and the signed session cookie. No JWTs, no server-side session store.
 
-The whole auth model is: one shared credential per household, and a cookie carrying nothing but
-`household_id`, signed with `SESSION_SECRET`. Every tenancy decision in the app is downstream of
-`read_session_cookie` returning that UUID, so the two things that matter here are that the
-signature is checked before the value is trusted, and that the cookie actually reaches the
-browser.
+The whole auth model is: one shared credential per household, and a cookie carrying
+`household_id` and the household's `session_version`, signed with `SESSION_SECRET`. Every
+tenancy decision in the app is downstream of `read_session_cookie` returning that UUID, so the
+two things that matter here are that the signature is checked before the value is trusted, and
+that the cookie actually reaches the browser.
+
+WHY THE VERSION IS IN THERE: without a server-side session store there is otherwise no way to
+revoke one cookie. A cookie signed over `household_id` alone stays good for its full 30 days
+after a password change, so a stolen cookie or a lost laptop could only be dealt with by
+rotating `SESSION_SECRET` — which signs *every* household out of *every* device. The version is
+a per-household revocation counter: `households.session_version` is bumped, and every cookie
+minted before the bump stops matching. See `app.deps.require_household`, which is the one place
+the comparison happens.
 
 THE COOKIE FLAG THAT COSTS AN AFTERNOON: `Secure` on `http://localhost` makes the browser drop
 the cookie *silently* — login returns 204, the Set-Cookie header is right there in devtools, and
@@ -37,6 +45,15 @@ SESSION_COOKIE_NAME = "penny_session"
 # Namespaces the signature: a token minted for some other purpose with the same secret cannot
 # be replayed as a session.
 _SESSION_SALT = "penny-session-v1"
+# The signed payload is one short string: "<household_id>:<session_version>". A dict would cost
+# ~30 more base64 characters per request for two fields whose order is never going to change,
+# and the cookie rides on every single request the SPA makes.
+_PAYLOAD_SEPARATOR = ":"
+# A cookie whose payload is a bare UUID predates `households.session_version` and was minted
+# when every household was, by definition, at version 1. Reading it as 1 rather than rejecting
+# it means the deploy that adds this column does not sign the whole userbase out — and the
+# first bump revokes those cookies exactly like any other.
+LEGACY_SESSION_VERSION = 1
 # Used only when SESSION_SECRET is unset outside production. Cookies signed with it survive a
 # reload (so dev logins persist) and are worthless to an attacker who can read this file —
 # which is the point of refusing to start without a real secret in production.
@@ -85,12 +102,18 @@ def _max_age_seconds() -> int:
     return get_settings().session_max_age_days * 24 * 60 * 60
 
 
-def set_session_cookie(response: Response, household_id: UUID) -> None:
-    """Sign `household_id` into `penny_session` on this response."""
+def set_session_cookie(response: Response, household_id: UUID, session_version: int) -> None:
+    """Sign `household_id` and `session_version` into `penny_session` on this response.
+
+    `session_version` is REQUIRED and has no default on purpose. A default would be a guess
+    about a revocation counter: mint version 1 for a household that has already bumped to 2 and
+    the family cannot log in at all, and mint "whatever is current" and the revocation is a
+    silent no-op. Every caller has the `Household` row in hand — pass `household.session_version`.
+    """
     settings = get_settings()
     response.set_cookie(
         SESSION_COOKIE_NAME,
-        _serializer().dumps(str(household_id)),
+        _serializer().dumps(f"{household_id}{_PAYLOAD_SEPARATOR}{session_version}"),
         max_age=_max_age_seconds(),
         httponly=True,
         samesite="lax",
@@ -117,12 +140,21 @@ def clear_session_cookie(response: Response) -> None:
     )
 
 
-def read_session_cookie(token: str | None) -> UUID | None:
+def read_session_cookie(token: str | None, *, current_version: int | None = None) -> UUID | None:
     """The signed cookie value -> household id, or None.
 
     None for every failure mode there is — absent, tampered, signed with a rotated secret,
-    older than SESSION_MAX_AGE_DAYS, or not a UUID. The caller cannot accidentally distinguish
-    "expired" from "forged", because it should treat both identically: send them to /login.
+    older than SESSION_MAX_AGE_DAYS, not a UUID, or (when `current_version` is supplied)
+    revoked. The caller cannot accidentally distinguish "expired" from "forged" from "signed
+    out everywhere", because it should treat all of them identically: send them to /login. A
+    revoked session that came back as a household id plus a reason is a session some future
+    caller uses anyway.
+
+    `current_version` is optional only because it cannot be known on the first call: the row
+    that holds it is loaded BY the id this function returns. `require_household` therefore
+    calls this twice — once to learn which household to load, once to check that household's
+    version — and the second call is the one that matters. Verifying the signature twice costs
+    one extra HMAC over ~100 bytes.
     """
     if not token:
         return None
@@ -135,8 +167,26 @@ def read_session_cookie(token: str | None) -> UUID | None:
         # Worth a line: a burst of these is either a secret rotation or someone poking.
         logger.warning("security.session_bad_signature")
         return None
+
+    raw_id, _, raw_version = str(raw).partition(_PAYLOAD_SEPARATOR)
     try:
-        return UUID(str(raw))
+        household_id = UUID(raw_id)
     except (ValueError, AttributeError, TypeError):
         logger.warning("security.session_payload_not_a_uuid")
         return None
+
+    if raw_version:
+        try:
+            version = int(raw_version)
+        except ValueError:
+            logger.warning("security.session_payload_version_not_an_int")
+            return None
+    else:
+        version = LEGACY_SESSION_VERSION
+
+    if current_version is not None and version != current_version:
+        # Not a warning: this is what a password change or "sign out everywhere" is SUPPOSED to
+        # do to every other device, so it is expected traffic, not an attack signal.
+        logger.info("security.session_revoked", extra={"household_id": str(household_id)})
+        return None
+    return household_id

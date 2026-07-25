@@ -19,7 +19,17 @@ services:
       POSTGRES_PASSWORD: penny
       POSTGRES_DB: penny
     ports:
-      - "5432:5432"
+      # The `127.0.0.1:` prefix is load-bearing — do NOT "fix" a connection problem by dropping
+      # it back to "5432:5432". That form publishes on every interface, and the password is
+      # `penny`, printed four lines up and in .env.example. On cafe or shared-office wifi that
+      # is one `psql -h <this-laptop>` away from a real family's health record, for anyone on
+      # the network — and importing a real WhatsApp export is the normal way to use this.
+      #
+      # If something cannot connect, this line is almost certainly not why: containers reach
+      # the database over the compose network by service name (`postgres:5432`), which ignores
+      # `ports` entirely. Only clients on this machine need the published port, and that is
+      # exactly what 127.0.0.1 still serves.
+      - "127.0.0.1:5432:5432"
     volumes:
       - penny_pgdata:/var/lib/postgresql/data
     configs:
