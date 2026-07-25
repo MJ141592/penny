@@ -1,0 +1,375 @@
+{
+  "$defs": {
+    "ExtractedEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "actors": {
+          "description": "Names of the people who did or reported it. Empty list if unclear.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Actors",
+          "type": "array"
+        },
+        "appointment_kind": {
+          "anyOf": [
+            {
+              "enum": [
+                "gp",
+                "specialist",
+                "hospital",
+                "test",
+                "therapy",
+                "other"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Appointment Kind"
+        },
+        "attendees": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Attendees",
+          "type": "array"
+        },
+        "body": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "At most 400 characters. Third person, factual, only what the messages state. Null if the title says everything.",
+          "title": "Body"
+        },
+        "body_site": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Body Site"
+        },
+        "confidence": {
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ],
+          "title": "Confidence",
+          "type": "string"
+        },
+        "date_basis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The verbatim phrase the date came from, e.g. 'last Tuesday', 'on the 17th'.",
+          "title": "Date Basis"
+        },
+        "dose_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Dose Text"
+        },
+        "duration_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Duration Text"
+        },
+        "follow_up_actions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Follow Up Actions",
+          "type": "array"
+        },
+        "is_future": {
+          "description": "True if the event had not happened yet at the time of the message describing it.",
+          "title": "Is Future",
+          "type": "boolean"
+        },
+        "kind": {
+          "enum": [
+            "symptom",
+            "appointment",
+            "medication",
+            "note"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "location": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Location"
+        },
+        "medication_action": {
+          "anyOf": [
+            {
+              "enum": [
+                "started",
+                "stopped",
+                "changed",
+                "missed",
+                "refilled",
+                "side_effect",
+                "other"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Medication Action"
+        },
+        "medication_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Medication Name"
+        },
+        "natural_key": {
+          "description": "A short lowercase phrase that would identify this same thing if the family mentioned it again next week, e.g. 'cardiology salford royal', 'apixaban started', 'dizziness'. Do not hash it, do not add dates, do not invent an id.",
+          "title": "Natural Key",
+          "type": "string"
+        },
+        "note_category": {
+          "anyOf": [
+            {
+              "enum": [
+                "logistics",
+                "mood",
+                "finance",
+                "equipment",
+                "admin",
+                "other"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Note Category"
+        },
+        "occurred_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "'YYYY-MM-DD' or 'YYYY-MM-DDTHH:MM' in the household timezone. Null if undeterminable.",
+          "title": "Occurred At"
+        },
+        "occurred_at_precision": {
+          "enum": [
+            "datetime",
+            "date",
+            "week",
+            "month",
+            "unknown"
+          ],
+          "title": "Occurred At Precision",
+          "type": "string"
+        },
+        "outcome": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Only if the messages describe what actually HAPPENED at the appointment.",
+          "title": "Outcome"
+        },
+        "prescriber": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Prescriber"
+        },
+        "provider_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Provider Name"
+        },
+        "quotes": {
+          "description": "Short verbatim excerpts, at most 200 characters each, copied character for character from a message you cited. Never paraphrase inside a quote.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Quotes",
+          "type": "array"
+        },
+        "severity": {
+          "anyOf": [
+            {
+              "enum": [
+                "mild",
+                "moderate",
+                "severe",
+                "unknown"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Severity"
+        },
+        "source_message_handles": {
+          "description": "Chunk-local message handles like 'm17', exactly as printed in the transcript. Never invent one, never cite a context_only line.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Source Message Handles",
+          "type": "array"
+        },
+        "subject": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Name of the person the event is ABOUT, taken from the care brief.",
+          "title": "Subject"
+        },
+        "symptom_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Symptom Name"
+        },
+        "title": {
+          "description": "At most 80 characters. No trailing full stop. E.g. 'Cardiology appointment, Salford Royal'.",
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "natural_key",
+        "title",
+        "body",
+        "occurred_at",
+        "occurred_at_precision",
+        "date_basis",
+        "is_future",
+        "subject",
+        "actors",
+        "confidence",
+        "source_message_handles",
+        "quotes",
+        "symptom_name",
+        "severity",
+        "body_site",
+        "duration_text",
+        "appointment_kind",
+        "provider_name",
+        "location",
+        "attendees",
+        "outcome",
+        "follow_up_actions",
+        "medication_name",
+        "dose_text",
+        "medication_action",
+        "prescriber",
+        "note_category"
+      ],
+      "title": "ExtractedEvent",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "events": {
+      "items": {
+        "$ref": "#/$defs/ExtractedEvent"
+      },
+      "title": "Events",
+      "type": "array"
+    },
+    "no_events_reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "One line explaining why nothing qualified. Null when events is non-empty.",
+      "title": "No Events Reason"
+    }
+  },
+  "required": [
+    "events",
+    "no_events_reason"
+  ],
+  "title": "ExtractionResult",
+  "type": "object"
+}

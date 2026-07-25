@@ -1,0 +1,4 @@
+[04/07/2026, 09:00:00] Sarah: Every date here has both components under 13
+[05/07/2026, 09:00:00] Tom: so dd/mm and mm/dd both parse cleanly
+[06/07/2026, 09:00:00] Priya: and the file cannot tell you which is right
+[07/07/2026, 09:00:00] Sarah: only the user knows

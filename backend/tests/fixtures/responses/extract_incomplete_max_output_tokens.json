@@ -1,0 +1,40 @@
+{
+  "id": "resp_penny_incomplete",
+  "created_at": 1784275920.0,
+  "incomplete_details": {
+    "reason": "max_output_tokens"
+  },
+  "model": "gpt-5.5-2026-04-23",
+  "object": "response",
+  "output": [
+    {
+      "id": "msg_penny_0001",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"events\": [",
+          "type": "output_text"
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": false,
+  "tool_choice": "auto",
+  "tools": [],
+  "status": "incomplete",
+  "usage": {
+    "input_tokens": 5600,
+    "input_tokens_details": {
+      "cache_write_tokens": 0,
+      "cached_tokens": 0
+    },
+    "output_tokens": 2000,
+    "output_tokens_details": {
+      "reasoning_tokens": 1900
+    },
+    "total_tokens": 7600
+  }
+}

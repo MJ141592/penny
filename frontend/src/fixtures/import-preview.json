@@ -1,0 +1,93 @@
+{
+  "filename": "WhatsApp Chat with Mum's Care.txt",
+  "file_sha256": "3b1f0c9a5d7e2148c0b6f3a91e4d8c72b5a0f6e39d14c28b7a5e0d3c9f172846",
+  "report": {
+    "total_lines": 2887,
+    "messages": 2114,
+    "continuations": 604,
+    "system_lines": 41,
+    "media_placeholders": 118,
+    "unparsed_lines": 10,
+    "unparsed_samples": [
+      "‎<Media omitted>",
+      "17/03/2026, 09:1 - broken line",
+      "‎Messages and calls are end-to-end encrypted."
+    ],
+    "detected_format": "%d/%m/%Y, %H:%M",
+    "senders": {
+      "Sarah": 1042,
+      "Tom": 486,
+      "Priya": 331,
+      "Dot": 255
+    },
+    "first_sent_at": "2026-02-01T08:11:00Z",
+    "last_sent_at": "2026-07-24T21:47:00Z",
+    "preview_head": [
+      {
+        "sent_at": "2026-02-01T08:11:00Z",
+        "sender": "Sarah",
+        "text": "Morning all. Starting this group so we stop losing track of Mum's stuff"
+      },
+      {
+        "sent_at": "2026-02-01T08:14:00Z",
+        "sender": "Tom",
+        "text": "good idea"
+      },
+      {
+        "sent_at": "2026-02-01T09:02:00Z",
+        "sender": "Tom",
+        "text": "I'm putting a key safe on next weekend so the carers can get in"
+      },
+      {
+        "sent_at": "2026-02-01T09:40:00Z",
+        "sender": "Sarah",
+        "text": "perfect. Dot needs the code too"
+      },
+      {
+        "sent_at": "2026-02-03T18:40:00Z",
+        "sender": "Priya",
+        "text": "we can come over the weekend after if that helps"
+      }
+    ],
+    "preview_tail": [
+      {
+        "sent_at": "2026-07-24T19:02:00Z",
+        "sender": "Sarah",
+        "text": "she ate a proper dinner tonight for the first time in a fortnight"
+      },
+      {
+        "sent_at": "2026-07-24T19:11:00Z",
+        "sender": "Priya",
+        "text": "that's brilliant"
+      },
+      {
+        "sent_at": "2026-07-24T20:15:00Z",
+        "sender": "Tom",
+        "text": "stool's coming Tuesday morning, Priya's going over"
+      },
+      {
+        "sent_at": "2026-07-24T21:44:00Z",
+        "sender": "Sarah",
+        "text": "right I'm off to bed. Night"
+      },
+      {
+        "sent_at": "2026-07-24T21:47:00Z",
+        "sender": "Tom",
+        "text": "Night"
+      }
+    ]
+  },
+  "sniffed": {
+    "dayfirst": true,
+    "dayfirst_evidence": "day>12",
+    "timezone": "Europe/London",
+    "timezone_source": "household_default"
+  },
+  "estimate": {
+    "message_count": 2114,
+    "estimated_cost_usd": "0.89",
+    "estimated_minutes": 2,
+    "budget_usd": "25.00",
+    "over_budget": false
+  }
+}

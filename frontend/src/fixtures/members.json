@@ -1,0 +1,38 @@
+[
+  {
+    "id": "f9cf5401-480c-46f0-a28a-07de2c049e0e",
+    "display_name": "Sarah",
+    "wa_jid": "447700900123@s.whatsapp.net",
+    "wa_lid": "251566778899@lid",
+    "message_count": 1042,
+    "first_seen_at": "2026-02-01T08:11:00Z",
+    "last_seen_at": "2026-07-24T21:47:00Z"
+  },
+  {
+    "id": "a7d61c43-1c23-4cc6-873c-754098a1e074",
+    "display_name": "Tom",
+    "wa_jid": "447700900456@s.whatsapp.net",
+    "wa_lid": "251566771234@lid",
+    "message_count": 486,
+    "first_seen_at": "2026-02-01T09:02:00Z",
+    "last_seen_at": "2026-07-24T20:15:00Z"
+  },
+  {
+    "id": "35d9867d-0ef4-4b06-a2f1-b22197516a3c",
+    "display_name": "Priya",
+    "wa_jid": "447700900789@s.whatsapp.net",
+    "wa_lid": null,
+    "message_count": 331,
+    "first_seen_at": "2026-02-03T18:40:00Z",
+    "last_seen_at": "2026-07-22T14:22:00Z"
+  },
+  {
+    "id": "02a9b6bf-6ad0-4036-96e0-acefc15d0806",
+    "display_name": "Dot",
+    "wa_jid": null,
+    "wa_lid": null,
+    "message_count": 255,
+    "first_seen_at": "2026-02-05T11:30:00Z",
+    "last_seen_at": "2026-07-17T13:22:00Z"
+  }
+]

@@ -1,0 +1,26 @@
+{
+  "id": "resp_penny_filtered",
+  "created_at": 1784275920.0,
+  "incomplete_details": {
+    "reason": "content_filter"
+  },
+  "model": "gpt-5.5-2026-04-23",
+  "object": "response",
+  "output": [],
+  "parallel_tool_calls": false,
+  "tool_choice": "auto",
+  "tools": [],
+  "status": "incomplete",
+  "usage": {
+    "input_tokens": 5600,
+    "input_tokens_details": {
+      "cache_write_tokens": 0,
+      "cached_tokens": 0
+    },
+    "output_tokens": 12,
+    "output_tokens_details": {
+      "reasoning_tokens": 12
+    },
+    "total_tokens": 5612
+  }
+}

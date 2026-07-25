@@ -1,0 +1,42 @@
+# Local Postgres, and nothing else. The app itself runs from `uv run uvicorn` / `npm run dev`
+# so that a code change is visible without a rebuild; only the database is worth a container.
+#
+#   docker compose up -d
+#   export PENNY_TEST_DATABASE_URL=postgresql+asyncpg://penny:penny@localhost:5432/penny_test
+#
+# Those credentials are the ones in .env.example, on purpose: `docker compose up -d` plus that
+# one export is the whole setup, and DB tests skip themselves when the variable is unset.
+#
+# Two databases: `penny` for running the app locally, `penny_test` for pytest, which drops and
+# recreates the public schema on every run. Same server, so nothing to start twice; separate
+# databases, so a test run cannot wipe the demo household you just imported.
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: penny
+      POSTGRES_PASSWORD: penny
+      POSTGRES_DB: penny
+    ports:
+      - "5432:5432"
+    volumes:
+      - penny_pgdata:/var/lib/postgresql/data
+    configs:
+      # Runs ONCE, when the volume is first initialised. If penny_test is missing later,
+      # the volume already existed: `docker compose down -v` and start again.
+      - source: create_test_db
+        target: /docker-entrypoint-initdb.d/01-create-test-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U penny -d penny"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+configs:
+  create_test_db:
+    content: |
+      CREATE DATABASE penny_test OWNER penny;
+
+volumes:
+  penny_pgdata:

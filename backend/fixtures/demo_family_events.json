@@ -1,0 +1,395 @@
+[
+  {
+    "id": "gt-01",
+    "kind": "symptom",
+    "occurred_at": "2026-01-19T00:00:00Z",
+    "occurred_at_precision": "day",
+    "title": "Dizzy spell standing up in the kitchen",
+    "natural_key_hint": "dizziness",
+    "must_mention": [
+      "dizz"
+    ],
+    "source_line_numbers": [
+      72,
+      73,
+      80
+    ],
+    "notes": "Recurrence 1 of 3. Must NOT merge with gt-07 or gt-11 — same symptom, weeks apart, three separate events. Dot re-reports it three hours later, so the same episode arrives twice from two senders on one day and must stay one event."
+  },
+  {
+    "id": "gt-02",
+    "kind": "medication",
+    "occurred_at": "2026-01-22T00:00:00Z",
+    "occurred_at_precision": "day",
+    "title": "Missed two doses of apixaban",
+    "natural_key_hint": "apixaban-missed",
+    "must_mention": [
+      "apixaban"
+    ],
+    "source_line_numbers": [
+      120,
+      124
+    ],
+    "notes": "Two missed doses ('yesterday and again this morning') collapse to one medication event on the day they were found. The follow-on message about a dosette box is a plan, not a second event."
+  },
+  {
+    "id": "gt-03",
+    "kind": "appointment",
+    "occurred_at": "2026-01-29T11:20:00Z",
+    "occurred_at_precision": "exact",
+    "title": "Telephone appointment with Dr Aziz",
+    "natural_key_hint": "dr-aziz-telephone",
+    "must_mention": [
+      "aziz"
+    ],
+    "source_line_numbers": [
+      159,
+      161
+    ],
+    "notes": "Booked on the 26th for 'Thursday at 11.20', the date confirmed one message later. Nobody ever reports back, so this event legitimately never gains an outcome and must stay status=scheduled."
+  },
+  {
+    "id": "gt-04",
+    "kind": "note",
+    "occurred_at": "2026-02-02T00:00:00Z",
+    "occurred_at_precision": "day",
+    "title": "Carer morning visit moved to 9.30",
+    "natural_key_hint": "carer-visit-time-change",
+    "must_mention": [
+      "visit"
+    ],
+    "source_line_numbers": [
+      184,
+      186
+    ],
+    "notes": "Logistics note, not an appointment. Announced on 28 January but occurs 'from Monday the 2nd' — the date has to come from the text, not from the message timestamp. The word 'carer' is never used; the agency is named instead (Bright Care), which is why must_mention only pins 'visit'."
+  },
+  {
+    "id": "gt-05",
+    "kind": "appointment",
+    "occurred_at": "2026-02-24T14:15:00Z",
+    "occurred_at_precision": "exact",
+    "title": "Cardiology outpatients, Salford Royal (cancelled)",
+    "natural_key_hint": "cardiology-salford-royal",
+    "must_mention": [
+      "cardiolog",
+      "cancel"
+    ],
+    "source_line_numbers": [
+      268,
+      269,
+      412,
+      413
+    ],
+    "notes": "HAZARD: cancelled then rebooked. This is the cancelled one and must survive as its own event with status=cancelled — not deleted, not merged into gt-10, and not a duplicate of it. Booking and cancellation are 13 days apart, so they land in different chunks."
+  },
+  {
+    "id": "gt-06",
+    "kind": "symptom",
+    "occurred_at": "2026-02-10T00:00:00Z",
+    "occurred_at_precision": "day",
+    "title": "Fall in the hall, bruised hip",
+    "natural_key_hint": "fall-hall",
+    "must_mention": [
+      "fall"
+    ],
+    "source_line_numbers": [
+      344,
+      347
+    ],
+    "notes": "HAZARD: relative-only date. Reported Thursday 12 February as 'last Tuesday' and never as a number, so occurred_at must resolve to 10 February against the message timestamp, not the extraction time. Distinct from gt-19 (different fall, three months later)."
+  },
+  {
+    "id": "gt-07",
+    "kind": "symptom",
+    "occurred_at": "2026-02-16T00:00:00Z",
+    "occurred_at_precision": "day",
+    "title": "Dizzy spell at the kitchen sink",
+    "natural_key_hint": "dizziness",
+    "must_mention": [
+      "dizz"
+    ],
+    "source_line_numbers": [
+      383,
+      384
+    ],
+    "notes": "Recurrence 2 of 3. Tom's reply, 'Same as last month then', is a backward reference and must not create a second event or re-date this one."
+  },
+  {
+    "id": "gt-08",
+    "kind": "medication",
+    "occurred_at": "2026-02-21T00:00:00Z",
+    "occurred_at_precision": "day",
+    "title": "Started co-codamol for hip pain",
+    "natural_key_hint": "co-codamol-started",
+    "must_mention": [
+      "co-codamol"
+    ],
+    "source_line_numbers": [
+      461,
+      464
+    ],
+    "notes": "Deliberately phrased as a repeat prescription arriving, so there is no GP visit to invent. Extracting an appointment here is a false positive."
+  },
+  {
+    "id": "gt-09",
+    "kind": "appointment",
+    "occurred_at": "2026-03-16T00:00:00Z",
+    "occurred_at_precision": "week",
+    "title": "Physio home visit for the hip",
+    "natural_key_hint": "physio-home-visit",
+    "must_mention": [
+      "physio"
+    ],
+    "source_line_numbers": [
+      649,
+      651
+    ],
+    "notes": "HAZARD: week precision. Said on Friday 6 March as 'the week after next' with the day explicitly unconfirmed, so the only correct answer is the week beginning Monday 16 March. An exact date here is a wrong answer, not a better one."
+  },
+  {
+    "id": "gt-10",
+    "kind": "appointment",
+    "occurred_at": "2026-03-17T11:00:00Z",
+    "occurred_at_precision": "exact",
+    "title": "Cardiology outpatients, Salford Royal",
+    "natural_key_hint": "cardiology-salford-royal",
+    "must_mention": [
+      "cardiolog"
+    ],
+    "source_line_numbers": [
+      570,
+      571,
+      768,
+      769
+    ],
+    "notes": "HAZARD: the rebooking of gt-05, and Sarah says so out loud ('the one they cancelled in February has moved to the 17th'). Two events, not one. Also gains an outcome the same day it happens (ECG, no changes), which must merge onto this row rather than create a third."
+  },
+  {
+    "id": "gt-11",
+    "kind": "symptom",
+    "occurred_at": "2026-03-12T00:00:00Z",
+    "occurred_at_precision": "day",
+    "title": "Dizzy spell in the bathroom",
+    "natural_key_hint": "dizziness",
+    "must_mention": [
+      "dizz"
+    ],
+    "source_line_numbers": [
+      722,
+      723
+    ],
+    "notes": "Recurrence 3 of 3. Sarah writes 'That's three now', which tempts a model into emitting one summarising event instead of the third instance."
+  },
+  {
+    "id": "gt-12",
+    "kind": "note",
+    "occurred_at": "2026-03-26T00:00:00Z",
+    "occurred_at_precision": "day",
+    "title": "Grab rails fitted in the bathroom",
+    "natural_key_hint": "grab-rails-fitted",
+    "must_mention": [
+      "grab rail"
+    ],
+    "source_line_numbers": [
+      875,
+      879
+    ],
+    "notes": "Equipment note. A photo (<Media omitted>) sits immediately after it with no caption and must contribute nothing of its own."
+  },
+  {
+    "id": "gt-13",
+    "kind": "symptom",
+    "occurred_at": "2026-04-02T00:00:00Z",
+    "occurred_at_precision": "day",
+    "title": "Swollen ankles in the evening",
+    "natural_key_hint": "swollen-ankles",
+    "must_mention": [
+      "ankle"
+    ],
+    "source_line_numbers": [
+      954,
+      956
+    ],
+    "notes": "Resolves by the next morning; the 'ankles look normal this morning' follow-up is part of the same event, not a second one."
+  },
+  {
+    "id": "gt-14",
+    "kind": "appointment",
+    "occurred_at": "2026-04-08T07:50:00Z",
+    "occurred_at_precision": "exact",
+    "title": "Fasting blood test at Brookfield surgery",
+    "natural_key_hint": "blood-test-brookfield",
+    "must_mention": [
+      "blood"
+    ],
+    "source_line_numbers": [
+      992,
+      1021
+    ],
+    "notes": "Booked on the 6th for 'Wednesday at 8.50' and reported done on the 8th. One event that gains status=attended; two events is a duplicate."
+  },
+  {
+    "id": "gt-15",
+    "kind": "symptom",
+    "occurred_at": "2026-04-14T00:00:00Z",
+    "occurred_at_precision": "day",
+    "title": "Confusion in the evening, gas ring left on",
+    "natural_key_hint": "confusion-episode",
+    "must_mention": [
+      "gas"
+    ],
+    "source_line_numbers": [
+      1101,
+      1102,
+      1106
+    ],
+    "notes": "HAZARD: thread spans a chunk boundary. It opens at 22:48 on the 14th and continues at 07:12 on the 15th, across the overnight quiet gap the chunker closes chunks on, so the two halves are extracted separately and must merge. Reported second-hand via the neighbour, so the actor is Jean, not Sarah."
+  },
+  {
+    "id": "gt-16",
+    "kind": "note",
+    "occurred_at": "2026-04-20T00:00:00Z",
+    "occurred_at_precision": "day",
+    "title": "Key safe fitted by the back door",
+    "natural_key_hint": "key-safe-fitted",
+    "must_mention": [
+      "key safe"
+    ],
+    "source_line_numbers": [
+      1109,
+      1110,
+      1166
+    ],
+    "notes": "HAZARD: the second event in the chunk-straddling 14-15 April thread. Decided on the morning side of the boundary and only actually done on the 20th, so occurred_at is the 20th while the decision sits in the previous chunk."
+  },
+  {
+    "id": "gt-17",
+    "kind": "appointment",
+    "occurred_at": "2026-05-01T00:00:00Z",
+    "occurred_at_precision": "month",
+    "title": "Podiatry appointment to be sent for May",
+    "natural_key_hint": "podiatry",
+    "must_mention": [
+      "podiatry"
+    ],
+    "source_line_numbers": [
+      1179
+    ],
+    "notes": "HAZARD: month precision. 'Sometime next month' said on 21 April, with the letter still to come. Anything finer than the month of May is invented."
+  },
+  {
+    "id": "gt-18",
+    "kind": "medication",
+    "occurred_at": "2026-04-28T00:00:00Z",
+    "occurred_at_precision": "day",
+    "title": "Apixaban repeat prescription reordered",
+    "natural_key_hint": "apixaban-refilled",
+    "must_mention": [
+      "apixaban"
+    ],
+    "source_line_numbers": [
+      1254
+    ],
+    "notes": "Same drug as gt-02 but a different action (refilled, not missed) three months later, so it must not collapse into it."
+  },
+  {
+    "id": "gt-19",
+    "kind": "symptom",
+    "occurred_at": "2026-05-09T00:00:00Z",
+    "occurred_at_precision": "day",
+    "title": "Fall in the bathroom, bruised arm",
+    "natural_key_hint": "fall-bathroom",
+    "must_mention": [
+      "fall"
+    ],
+    "source_line_numbers": [
+      1377,
+      1380
+    ],
+    "notes": "HAZARD: two siblings report the same fall 39 minutes apart, independently — Sarah at 18:12 having been round, Tom at 18:51 having spoken to Margaret on the phone. Wording differs ('a fall' vs 'a tumble'). One event, not two."
+  },
+  {
+    "id": "gt-20",
+    "kind": "note",
+    "occurred_at": "2026-05-20T00:00:00Z",
+    "occurred_at_precision": "day",
+    "title": "Referral to the memory service submitted",
+    "natural_key_hint": "memory-service-referral",
+    "must_mention": [
+      "memory"
+    ],
+    "source_line_numbers": [
+      1505
+    ],
+    "notes": "Admin note, not an appointment: nothing is booked and there is no date, only a three-month wait. Emitting an appointment for the referral is a false positive."
+  },
+  {
+    "id": "gt-21",
+    "kind": "appointment",
+    "occurred_at": "2026-06-02T14:40:00Z",
+    "occurred_at_precision": "exact",
+    "title": "Hip X-ray at Salford Royal (missed)",
+    "natural_key_hint": "hip-xray-salford-royal",
+    "must_mention": [
+      "x-ray"
+    ],
+    "source_line_numbers": [
+      1565,
+      1566,
+      1635
+    ],
+    "notes": "Booked on 27 May, then missed — Margaret was at the lunch club. One event that ends status=missed, with Tom as the attendee who turned up. Never rebooked in the transcript, so no follow-up event exists to find."
+  },
+  {
+    "id": "gt-22",
+    "kind": "appointment",
+    "occurred_at": "2026-06-17T08:30:00Z",
+    "occurred_at_precision": "exact",
+    "title": "GP appointment with Dr Aziz, Brookfield surgery",
+    "natural_key_hint": "dr-aziz-brookfield",
+    "must_mention": [
+      "aziz"
+    ],
+    "source_line_numbers": [
+      1700,
+      1701,
+      1776,
+      1800,
+      1801,
+      1804
+    ],
+    "notes": "HAZARD: discussed before (9 June, and a multi-line list of questions on the 16th) and reported on afterwards in a separate thread on the evening of the 18th, a day after it happened. ONE appointment event that gains details.outcome, follow_up_actions and status=attended — there is no appointment_outcome kind and no parent_event_id. The 18-19 June thread also crosses an overnight gap."
+  },
+  {
+    "id": "gt-23",
+    "kind": "medication",
+    "occurred_at": "2026-06-17T00:00:00Z",
+    "occurred_at_precision": "day",
+    "title": "Bisoprolol halved to 2.5mg",
+    "natural_key_hint": "bisoprolol-changed",
+    "must_mention": [
+      "bisoprolol"
+    ],
+    "source_line_numbers": [
+      1801
+    ],
+    "notes": "Reported on the 18th but anchored by 'at the appointment', so it belongs to the 17th. A separate medication event from gt-22 even though one message carries both."
+  },
+  {
+    "id": "gt-24",
+    "kind": "appointment",
+    "occurred_at": "2026-08-06T09:15:00Z",
+    "occurred_at_precision": "exact",
+    "title": "Cardiology follow-up, Salford Royal",
+    "natural_key_hint": "cardiology-salford-royal",
+    "must_mention": [
+      "cardiolog"
+    ],
+    "source_line_numbers": [
+      1935,
+      1938
+    ],
+    "notes": "The only event dated after the export ends, so it is the one that proves /api/upcoming works. Same clinic as gt-05 and gt-10 but five months later, which is exactly what a too-coarse dedup key would over-merge."
+  }
+]

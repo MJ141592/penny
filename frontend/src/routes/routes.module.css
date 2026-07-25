@@ -1,0 +1,331 @@
+/*
+ * Route-level layout only, shared by every screen. Feed cards, day dividers and source
+ * disclosure get their own component modules — these rules are the frame around them.
+ */
+
+.shell {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.headerInner {
+  width: var(--shell-width);
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 12px 20px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+}
+
+.brand {
+  font-weight: 600;
+  color: var(--text-h);
+  text-decoration: none;
+  letter-spacing: -0.3px;
+}
+
+.brandSub {
+  color: var(--text);
+  font-weight: 400;
+  margin-left: 8px;
+}
+
+.nav {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  align-items: center;
+}
+
+.navLink {
+  color: var(--text);
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  font-size: 15px;
+}
+
+.navLink:hover {
+  background: var(--surface-2);
+}
+
+.navLinkActive {
+  color: var(--text-h);
+  background: var(--accent-bg);
+}
+
+.main {
+  width: var(--shell-width);
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 24px 20px 64px;
+  box-sizing: border-box;
+  flex: 1;
+}
+
+.pageHeader {
+  margin-bottom: 20px;
+}
+
+.section {
+  margin-bottom: 32px;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.cardTop {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.kind {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-weight: 600;
+  border: 1px solid currentcolor;
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+
+.kindSymptom {
+  color: var(--kind-symptom);
+}
+.kindAppointment {
+  color: var(--kind-appointment);
+}
+.kindMedication {
+  color: var(--kind-medication);
+}
+.kindNote {
+  color: var(--kind-note);
+}
+
+.title {
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.meta {
+  font-size: 14px;
+  color: var(--text);
+}
+
+.edited {
+  font-size: 12px;
+  color: var(--warn);
+  border: 1px solid currentcolor;
+  border-radius: 999px;
+  padding: 0 6px;
+}
+
+.body {
+  margin-top: 8px;
+}
+
+.facts {
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 12px;
+  font-size: 15px;
+}
+
+.factLabel {
+  color: var(--text);
+}
+
+.factValue {
+  color: var(--text-h);
+  margin: 0;
+}
+
+.excerpts {
+  margin-top: 12px;
+  font-size: 15px;
+}
+
+.quote {
+  border-left: 2px solid var(--accent-border);
+  padding: 2px 0 2px 10px;
+  margin: 6px 0 0;
+  color: var(--text);
+}
+
+.quoteMeta {
+  font-size: 13px;
+  color: var(--text);
+  opacity: 0.8;
+}
+
+.dayHeading {
+  position: sticky;
+  top: 57px;
+  background: var(--bg);
+  padding: 12px 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--text-h);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+
+.panel {
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 28px;
+}
+
+.panelRow {
+  display: flex;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+}
+
+.panelRow:first-of-type {
+  border-top: 0;
+}
+
+.empty {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 28px 20px;
+  text-align: center;
+  color: var(--text);
+}
+
+.error {
+  border: 1px solid var(--danger);
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 420px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.label {
+  font-size: 14px;
+  color: var(--text-h);
+}
+
+.input {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  padding: 9px 11px;
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.button {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  border-color: var(--accent-border);
+}
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.buttonPrimary {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.hint {
+  font-size: 14px;
+  color: var(--text);
+}
+
+.progress {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.progressBar {
+  height: 100%;
+  background: var(--accent);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.table th {
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.citation {
+  font-size: 14px;
+  color: var(--text);
+  padding: 4px 0;
+}

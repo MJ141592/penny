@@ -1,3 +1,12 @@
+/*
+ * Global tokens only. Everything component-shaped lives in a CSS Module next to its component,
+ * so nothing here can be accidentally depended on from a distance.
+ *
+ * The `:root` token names and the `prefers-color-scheme: dark` block are inherited from the
+ * scaffold and kept deliberately — the whole UI is checked in both schemes. The Vite starter's
+ * layout rules (the 1126px `#root` shell, `.counter`, the hero) are gone.
+ */
+
 :root {
   --text: #6b6375;
   --text-h: #08060d;
@@ -11,11 +20,29 @@
   --shadow:
     rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
 
+  /* Penny additions. Surfaces first. */
+  --surface: #fff;
+  --surface-2: #faf9f7;
+  --danger: #b3261e;
+  --danger-bg: rgba(179, 38, 30, 0.08);
+  --ok: #1a7f4b;
+  --warn: #8a6100;
+
+  /* One hue per event kind, used by feed cards and the upcoming panel. */
+  --kind-symptom: #c2410c;
+  --kind-appointment: #1d4ed8;
+  --kind-medication: #6d28d9;
+  --kind-note: #4b5563;
+
+  --radius: 10px;
+  --gap: 16px;
+  --shell-width: 880px;
+
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
-  font: 18px/145% var(--sans);
+  font: 17px/150% var(--sans);
   letter-spacing: 0.18px;
   color-scheme: light dark;
   color: var(--text);
@@ -43,69 +70,76 @@
     --social-bg: rgba(47, 48, 58, 0.5);
     --shadow:
       rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
+    --surface: #1c1e26;
+    --surface-2: #21232c;
+    --danger: #f2b8b5;
+    --danger-bg: rgba(242, 184, 181, 0.12);
+    --ok: #6ee7a8;
+    --warn: #fbbf24;
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
+    --kind-symptom: #fb923c;
+    --kind-appointment: #93c5fd;
+    --kind-medication: #c4b5fd;
+    --kind-note: #9ca3af;
+  }
 }
 
 body {
   margin: 0;
+  min-height: 100svh;
 }
 
 h1,
-h2 {
+h2,
+h3 {
   font-family: var(--heading);
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-h);
 }
 
 h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
+  font-size: 28px;
+  line-height: 120%;
+  letter-spacing: -0.5px;
+  margin: 0 0 8px;
 }
+
 h2 {
-  font-size: 24px;
-  line-height: 118%;
+  font-size: 20px;
+  line-height: 125%;
   letter-spacing: -0.24px;
   margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
 }
+
+h3 {
+  font-size: 17px;
+  line-height: 130%;
+  margin: 0 0 4px;
+}
+
 p {
   margin: 0;
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+a {
+  color: var(--accent);
 }
 
 code {
-  font-size: 15px;
+  font-family: var(--mono);
+  font-size: 14px;
   line-height: 135%;
-  padding: 4px 8px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--text-h);
   background: var(--code-bg);
+}
+
+input,
+select,
+button,
+textarea {
+  font: inherit;
+  color: inherit;
 }

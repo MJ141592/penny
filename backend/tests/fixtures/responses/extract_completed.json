@@ -1,0 +1,37 @@
+{
+  "id": "resp_penny_completed",
+  "created_at": 1784275920.0,
+  "model": "gpt-5.5-2026-04-23",
+  "object": "response",
+  "output": [
+    {
+      "id": "msg_penny_0001",
+      "content": [
+        {
+          "annotations": [],
+          "text": "{\"events\": [{\"kind\": \"appointment\", \"natural_key\": \"cardiology salford royal\", \"title\": \"Cardiology appointment, Salford Royal\", \"body\": \"Sarah is taking Margaret to cardiology at Salford Royal on the 22nd.\", \"occurred_at\": \"2026-07-22T14:30\", \"occurred_at_precision\": \"datetime\", \"date_basis\": \"the 22nd at half two\", \"is_future\": true, \"subject\": \"Margaret\", \"actors\": [\"Sarah\"], \"confidence\": \"high\", \"source_message_handles\": [\"m17\", \"m19\"], \"quotes\": [\"cardiology is the 22nd at half two, I'll take her\"], \"symptom_name\": null, \"severity\": null, \"body_site\": null, \"duration_text\": null, \"appointment_kind\": \"specialist\", \"provider_name\": \"Salford Royal cardiology\", \"location\": \"Salford Royal\", \"attendees\": [\"Sarah\", \"Margaret\"], \"outcome\": null, \"follow_up_actions\": [], \"medication_name\": null, \"dose_text\": null, \"medication_action\": null, \"prescriber\": null, \"note_category\": null}], \"no_events_reason\": null}",
+          "type": "output_text"
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message"
+    }
+  ],
+  "parallel_tool_calls": false,
+  "tool_choice": "auto",
+  "tools": [],
+  "status": "completed",
+  "usage": {
+    "input_tokens": 5600,
+    "input_tokens_details": {
+      "cache_write_tokens": 0,
+      "cached_tokens": 0
+    },
+    "output_tokens": 760,
+    "output_tokens_details": {
+      "reasoning_tokens": 250
+    },
+    "total_tokens": 6360
+  }
+}

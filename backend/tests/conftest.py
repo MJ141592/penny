@@ -34,9 +34,14 @@ def settings_override(monkeypatch: pytest.MonkeyPatch) -> Callable[..., Settings
 
     def _override(**kwargs: object) -> Settings:
         settings = Settings(_env_file=None, **kwargs)
+        # Bound to a LOCAL before any patching. `get_settings` as a global would be re-read on
+        # every iteration, and this module's own binding is one of the ones about to be
+        # patched — so the comparison target would silently become the lambda after the first
+        # match and every module later in sys.modules would be skipped.
+        real = get_settings
         monkeypatch.setattr(app.config, "get_settings", lambda: settings)
         for module in list(sys.modules.values()):
-            if getattr(module, "get_settings", None) is get_settings:
+            if getattr(module, "get_settings", None) is real:
                 monkeypatch.setattr(module, "get_settings", lambda: settings)
         return settings
 

@@ -1,0 +1,42 @@
+# Build context for the root Dockerfile. Both lockfiles are deliberately NOT ignored:
+# `npm ci` and `uv sync --frozen` both fail without them, which is the point.
+
+.git
+.github
+.gitignore
+.context
+docs
+
+# Secrets never enter the image. Railway injects the real values at runtime.
+# Globbed, not bare: config.py reads backend/.env as well as the repo-root one, and a bare
+# `.env` rule matches only the context root — so `COPY backend/ ./` would bake a developer's
+# real OPENAI_API_KEY into a published image layer.
+**/.env
+**/.env.*
+
+# Node: node_modules is rebuilt by `npm ci` in the build stage, and a host dist/ would
+# shadow the one the image builds — a stale SPA that looks fine locally.
+**/node_modules
+**/dist
+**/.vite
+*.local
+
+# Python: a host .venv is macOS/arm-specific and would break `uv sync`'s layout.
+**/.venv
+**/__pycache__
+**/*.py[cod]
+**/*.egg-info
+.pytest_cache
+**/.pytest_cache
+**/.ruff_cache
+.coverage
+htmlcov
+
+# The runtime image does not run pytest, and fixtures/ holds a multi-thousand-message
+# WhatsApp export used only by the extraction eval.
+backend/tests
+backend/fixtures
+
+.DS_Store
+.idea
+.vscode

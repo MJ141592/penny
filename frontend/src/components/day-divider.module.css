@@ -1,0 +1,31 @@
+/*
+ * Sticks under the app header (its 57px) so the day you are reading stays named while you scroll
+ * a long history. The opaque background matters: the cards must slide under it, not through it.
+ */
+
+.divider {
+  position: sticky;
+  top: 57px;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 24px 0 12px;
+  padding: 10px 0 6px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.heading {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--text-h);
+}
+
+.count {
+  font-size: 13px;
+  color: var(--text);
+  margin-left: auto;
+}

@@ -1,0 +1,11 @@
+[14/07/2026, 20:10:00] Messages and calls are end-to-end encrypted. No one outside of this chat, not even WhatsApp, can read or listen to them.
+[14/07/2026, 20:10:01] Sarah: created group “Mum's care”
+[14/07/2026, 20:10:02] Sarah: added Tom
+[14/07/2026, 20:10:03] Sarah: added Mum
+[14/07/2026, 20:11:00] Sarah: Right, everyone's here
+[14/07/2026, 20:12:00] Tom: This message was deleted
+[14/07/2026, 20:13:00] Priya: changed the subject to “Mum's care 2026”
+[14/07/2026, 20:14:00] Tom: Missed voice call
+[14/07/2026, 20:15:00] +44 7700 900123 joined using this group's invite link
+[14/07/2026, 20:16:00] Priya: left
+[14/07/2026, 20:17:00] Sarah: Mum added salt to everything again

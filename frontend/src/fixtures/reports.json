@@ -1,0 +1,140 @@
+[
+  {
+    "id": "6448acbf-60cb-473a-9f1b-ecc3bfabfa23",
+    "title": "Week of 20–26 July",
+    "period_start": "2026-07-20T00:00:00Z",
+    "period_end": "2026-07-27T00:00:00Z",
+    "status": "running",
+    "generated_at": null,
+    "summary": "",
+    "urgent_flag": false,
+    "urgent_reason": null,
+    "sections": [],
+    "questions_for_the_doctor": [],
+    "watch_items": [],
+    "data_gaps": [],
+    "error": null
+  },
+  {
+    "id": "f2755766-be3a-4739-b0b8-fb1f368dadb3",
+    "title": "Week of 13–19 July",
+    "period_start": "2026-07-13T00:00:00Z",
+    "period_end": "2026-07-20T00:00:00Z",
+    "status": "complete",
+    "generated_at": "2026-07-20T06:03:12Z",
+    "summary": "Margaret's sleep and appetite both worsened this week. She saw Dr Aziz on Friday, who took bloods, stopped the amlodipine and booked a review for 31 July.",
+    "urgent_flag": false,
+    "urgent_reason": null,
+    "sections": [
+      {
+        "heading": "Sleep",
+        "body_markdown": "Margaret was up several times overnight on three occasions this week [E1], against a four-week average of one night a week. Sarah stayed over on Tuesday and described her coming downstairs twice.",
+        "citations": [
+          {
+            "handle": "E1",
+            "event_id": "5857fd39-edc2-47ad-ab8a-1642c4e69826",
+            "kind": "symptom",
+            "occurred_at": "2026-07-14T20:04:00Z",
+            "title": "Poor sleep, up four times overnight"
+          }
+        ]
+      },
+      {
+        "heading": "Appetite",
+        "body_markdown": "Two meals were refused or left largely uneaten [E2]. This is the fourth week running in which appetite has come up, and the first in which two family members reported it independently.",
+        "citations": [
+          {
+            "handle": "E2",
+            "event_id": "04648010-b242-4611-812d-70e68e8c3cf5",
+            "kind": "symptom",
+            "occurred_at": "2026-07-14T11:30:00Z",
+            "title": "Off her food, refused her tea"
+          }
+        ]
+      },
+      {
+        "heading": "Medication and appointments",
+        "body_markdown": "Dr Aziz stopped the amlodipine at Friday's appointment [E3], on the view that it was behind the dizziness that started in mid-June [E4]. One evening dose of apixaban was missed on Saturday [E5] — the second missed dose in nine weeks.",
+        "citations": [
+          {
+            "handle": "E3",
+            "event_id": "eb064417-8a3d-4410-8943-79fb0aeb2637",
+            "kind": "appointment",
+            "occurred_at": "2026-07-17T08:30:00Z",
+            "title": "GP appointment, Dr Aziz"
+          },
+          {
+            "handle": "E4",
+            "event_id": "5d28ba03-355b-4224-9325-25fc2d42bb20",
+            "kind": "medication",
+            "occurred_at": "2026-07-17T13:15:00Z",
+            "title": "Amlodipine stopped"
+          },
+          {
+            "handle": "E5",
+            "event_id": "205db09c-0f00-479a-83a1-af9389ecfa26",
+            "kind": "medication",
+            "occurred_at": "2026-07-18T21:30:00Z",
+            "title": "Missed her evening apixaban"
+          }
+        ]
+      }
+    ],
+    "questions_for_the_doctor": [
+      "Now the amlodipine has stopped, how long before the dizziness should settle?",
+      "Is the poor appetite worth investigating separately, or is it likely to be the same picture?"
+    ],
+    "watch_items": [
+      "Appetite — four mentions of skipped or refused meals this month",
+      "Missed evening apixaban doses — two in nine weeks, both on a Saturday"
+    ],
+    "data_gaps": [
+      "No blood pressure readings recorded since the surgery rang in April",
+      "No weight recorded at any point"
+    ],
+    "error": null
+  },
+  {
+    "id": "31aaf154-fdf9-4f9b-ac9f-b4a443f293a3",
+    "title": "Week of 6–12 July",
+    "period_start": "2026-07-06T00:00:00Z",
+    "period_end": "2026-07-13T00:00:00Z",
+    "status": "complete",
+    "generated_at": "2026-07-13T06:02:48Z",
+    "summary": "A quieter week. One missed chiropody appointment and a continuing thread about appetite.",
+    "urgent_flag": false,
+    "urgent_reason": null,
+    "sections": [
+      {
+        "heading": "Appetite",
+        "body_markdown": "Priya reported Margaret eating half a sandwich and nothing else [E1]. This is the third week appetite has been mentioned.",
+        "citations": [
+          {
+            "handle": "E1",
+            "event_id": "bf47c836-dac6-41d4-a55c-02df3ddfc535",
+            "kind": "symptom",
+            "occurred_at": "2026-07-06T17:20:00Z",
+            "title": "Off her food, ate half a sandwich"
+          }
+        ]
+      },
+      {
+        "heading": "Missed appointment",
+        "body_markdown": "The home chiropody visit was missed [E2]: Margaret did not answer the door and had no memory of the appointment. It has not yet been rebooked.",
+        "citations": [
+          {
+            "handle": "E2",
+            "event_id": "c059845a-1535-4234-9913-a6c8e6d21cd1",
+            "kind": "appointment",
+            "occurred_at": "2026-07-02T08:30:00Z",
+            "title": "Chiropody at home"
+          }
+        ]
+      }
+    ],
+    "questions_for_the_doctor": [],
+    "watch_items": ["Appointments Margaret is not reminded about are being missed"],
+    "data_gaps": ["No record of what the carers log at the morning visits"],
+    "error": null
+  }
+]

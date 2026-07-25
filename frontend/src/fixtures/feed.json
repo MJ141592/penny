@@ -1,0 +1,1072 @@
+{
+  "events": [
+    {
+      "id": "c5fcdbc9-ab97-4347-aecd-20ad96585486",
+      "kind": "appointment",
+      "occurred_at": "2026-08-19T09:15:00Z",
+      "occurred_at_precision": "exact",
+      "title": "Memory clinic assessment",
+      "body": "The memory clinic letter arrived. Sarah is taking Margaret and will bring the medication list.",
+      "actor": { "member_id": "f9cf5401-480c-46f0-a28a-07de2c049e0e", "display_name": "Sarah" },
+      "details": {
+        "appointment_kind": "specialist",
+        "provider_name": "Salford Memory Assessment Service",
+        "location": "Salford Royal Hospital",
+        "attendees": ["Sarah", "Margaret"],
+        "outcome": null,
+        "follow_up_actions": ["Take the medication list and Dr Aziz's letter"],
+        "status": "scheduled"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "148b5725-fc0e-43cc-b651-3ac4cde9397e",
+          "sent_at": "2026-07-21T16:40:00Z",
+          "sender": "Sarah",
+          "quote": "memory clinic letter came, 19th August at 10.15, Salford Royal. I'll take her"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-07-21T18:02:09Z"
+    },
+    {
+      "id": "482e5543-eac8-483f-ab86-b7d02af73caa",
+      "kind": "appointment",
+      "occurred_at": "2026-08-06T13:20:00Z",
+      "occurred_at_precision": "exact",
+      "title": "Cardiology follow-up, Salford Royal",
+      "body": "Three-month cardiology follow-up after the echo. Tom is driving her.",
+      "actor": { "member_id": "a7d61c43-1c23-4cc6-873c-754098a1e074", "display_name": "Tom" },
+      "details": {
+        "appointment_kind": "specialist",
+        "provider_name": "Dr Whitfield",
+        "location": "Salford Royal Hospital",
+        "attendees": ["Tom", "Margaret"],
+        "outcome": null,
+        "follow_up_actions": [],
+        "status": "scheduled"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "cdb081a8-0239-4962-b958-b0caf4b2d39e",
+          "sent_at": "2026-07-19T11:05:00Z",
+          "sender": "Tom",
+          "quote": "cardiology is 6th Aug 2.20pm, I'll take the afternoon off and drive her"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-07-19T12:31:44Z"
+    },
+    {
+      "id": "c49a3c72-162c-4455-87f4-4869985241fe",
+      "kind": "appointment",
+      "occurred_at": "2026-07-31T08:30:00Z",
+      "occurred_at_precision": "exact",
+      "title": "Review with Dr Aziz",
+      "body": "The two-week review Dr Aziz booked at the last appointment, to go through the blood results.",
+      "actor": { "member_id": "f9cf5401-480c-46f0-a28a-07de2c049e0e", "display_name": "Sarah" },
+      "details": {
+        "appointment_kind": "gp",
+        "provider_name": "Dr Aziz",
+        "location": "Brookfield Surgery",
+        "attendees": ["Sarah", "Margaret"],
+        "outcome": null,
+        "follow_up_actions": [],
+        "status": "scheduled"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "5cc7e609-08b9-445e-afd5-58abe9a37f7d",
+          "sent_at": "2026-07-17T12:48:00Z",
+          "sender": "Sarah",
+          "quote": "booked the review, 31st at 9.30 with Dr Aziz"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-07-17T14:10:02Z"
+    },
+    {
+      "id": "7dfc8c3a-1cf5-4304-a8d5-575b1701e316",
+      "kind": "note",
+      "occurred_at": "2026-07-28T09:00:00Z",
+      "occurred_at_precision": "day",
+      "title": "Perching stool being delivered",
+      "body": "Delivery slot is Tuesday morning. Priya will be there to let them in.",
+      "actor": { "member_id": "35d9867d-0ef4-4b06-a2f1-b22197516a3c", "display_name": "Priya" },
+      "details": { "category": "equipment" },
+      "source_excerpts": [
+        {
+          "message_id": "c9f227a0-3524-4e7c-a520-2a194276457d",
+          "sent_at": "2026-07-22T14:22:00Z",
+          "sender": "Priya",
+          "quote": "stool comes Tuesday morning, I'll be there to let them in"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-07-22T16:04:51Z"
+    },
+    {
+      "id": "5031b9e4-228c-41b1-a17f-42a92347e702",
+      "kind": "note",
+      "occurred_at": "2026-07-22T14:00:00Z",
+      "occurred_at_precision": "day",
+      "title": "Perching stool ordered for the kitchen",
+      "body": "Margaret has been leaning on the worktop to make tea. Priya ordered a perching stool through the OT service.",
+      "actor": { "member_id": "35d9867d-0ef4-4b06-a2f1-b22197516a3c", "display_name": "Priya" },
+      "details": { "category": "equipment" },
+      "source_excerpts": [
+        {
+          "message_id": "69d6c664-f335-42e6-9f82-6f32845c481b",
+          "sent_at": "2026-07-22T14:03:00Z",
+          "sender": "Priya",
+          "quote": "ordered her a perching stool, she keeps leaning on the worktop to make a brew"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-07-22T16:04:51Z"
+    },
+    {
+      "id": "94b11f65-8748-47a0-8c87-78bc2161d583",
+      "kind": "symptom",
+      "occurred_at": "2026-07-20T06:40:00Z",
+      "occurred_at_precision": "day",
+      "title": "Up twice overnight, better than last week",
+      "body": null,
+      "actor": { "member_id": "f9cf5401-480c-46f0-a28a-07de2c049e0e", "display_name": "Sarah" },
+      "details": {
+        "symptom": "Disturbed sleep",
+        "severity": "mild",
+        "body_site": null,
+        "duration_text": null
+      },
+      "source_excerpts": [
+        {
+          "message_id": "7339d950-0ba9-4dd5-b262-8f5ddf2b3ee1",
+          "sent_at": "2026-07-20T06:41:00Z",
+          "sender": "Sarah",
+          "quote": "only up twice last night, better than last week"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-07-20T08:15:33Z"
+    },
+    {
+      "id": "205db09c-0f00-479a-83a1-af9389ecfa26",
+      "kind": "medication",
+      "occurred_at": "2026-07-18T21:30:00Z",
+      "occurred_at_precision": "exact",
+      "title": "Missed her evening apixaban",
+      "body": "Tom found Saturday's evening dose still in the pill box. Sarah checked with the pharmacy: take the next dose as normal, do not double up.",
+      "actor": { "member_id": "a7d61c43-1c23-4cc6-873c-754098a1e074", "display_name": "Tom" },
+      "details": {
+        "medication_name": "Apixaban",
+        "dose_text": "5mg twice daily",
+        "action": "missed",
+        "prescriber": "Dr Aziz"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "05a33922-b93e-44a3-ad7b-9877302f8b02",
+          "sent_at": "2026-07-18T21:33:00Z",
+          "sender": "Tom",
+          "quote": "saturday evening apixaban still in the box, she's missed it again"
+        }
+      ],
+      "edited_at": "2026-07-19T09:12:44Z",
+      "created_at": "2026-07-18T22:40:17Z"
+    },
+    {
+      "id": "5d28ba03-355b-4224-9325-25fc2d42bb20",
+      "kind": "medication",
+      "occurred_at": "2026-07-17T13:15:00Z",
+      "occurred_at_precision": "day",
+      "title": "Amlodipine stopped",
+      "body": "Dr Aziz stopped the amlodipine at the appointment, on the view that it was behind the dizziness. Blood pressure to be rechecked at the review.",
+      "actor": { "member_id": "f9cf5401-480c-46f0-a28a-07de2c049e0e", "display_name": "Sarah" },
+      "details": {
+        "medication_name": "Amlodipine",
+        "dose_text": "was 5mg once daily",
+        "action": "stopped",
+        "prescriber": "Dr Aziz"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "115c750f-4256-4103-a461-6aa8091ab0ef",
+          "sent_at": "2026-07-17T13:16:00Z",
+          "sender": "Sarah",
+          "quote": "he's stopped the amlodipine, thinks that's what's making her dizzy"
+        },
+        {
+          "message_id": "5acba942-2d52-4a1c-ad29-146e87b45d69",
+          "sent_at": "2026-07-17T13:22:00Z",
+          "sender": "Dot",
+          "quote": "good, she's not been right since she started them"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-07-17T14:10:02Z"
+    },
+    {
+      "id": "eb064417-8a3d-4410-8943-79fb0aeb2637",
+      "kind": "appointment",
+      "occurred_at": "2026-07-17T08:30:00Z",
+      "occurred_at_precision": "exact",
+      "title": "GP appointment, Dr Aziz",
+      "body": "Sarah took Margaret to the GP. Bloods taken, review booked in two weeks, amlodipine stopped.",
+      "actor": { "member_id": "f9cf5401-480c-46f0-a28a-07de2c049e0e", "display_name": "Sarah" },
+      "details": {
+        "appointment_kind": "gp",
+        "provider_name": "Dr Aziz",
+        "location": "Brookfield Surgery",
+        "attendees": ["Sarah", "Margaret"],
+        "outcome": "Bloods taken, review in 2 weeks",
+        "follow_up_actions": [
+          "Book review appointment for 31 July",
+          "Stop amlodipine and watch the dizziness"
+        ],
+        "status": "attended"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "f0bbac57-df22-4ef2-bb9c-07afb60b432f",
+          "sent_at": "2026-07-17T08:12:00Z",
+          "sender": "Sarah",
+          "quote": "in the waiting room with Mum, 9.30 with Dr Aziz"
+        },
+        {
+          "message_id": "a488dc28-a3e1-4c15-869f-74fb5a392986",
+          "sent_at": "2026-07-17T10:04:00Z",
+          "sender": "Sarah",
+          "quote": "Just got back from the GP with Mum, bloods taken, review in 2 weeks"
+        },
+        {
+          "message_id": "99a753d7-372b-47db-b183-c888d28c26e3",
+          "sent_at": "2026-07-17T10:19:00Z",
+          "sender": "Tom",
+          "quote": "did you ask him about the dizziness?"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-07-17T11:30:55Z"
+    },
+    {
+      "id": "844ef044-ad4f-4814-af25-7d4bd2530408",
+      "kind": "note",
+      "occurred_at": "2026-07-15T16:50:00Z",
+      "occurred_at_precision": "day",
+      "title": "Brighter after a long call with Dot",
+      "body": "Dot rang and they talked for nearly an hour about Blackpool. Margaret was much brighter afterwards.",
+      "actor": { "member_id": "02a9b6bf-6ad0-4036-96e0-acefc15d0806", "display_name": "Dot" },
+      "details": { "category": "mood" },
+      "source_excerpts": [
+        {
+          "message_id": "3dd21e52-85fb-44bf-a48f-d677d13a884e",
+          "sent_at": "2026-07-15T16:52:00Z",
+          "sender": "Dot",
+          "quote": "had our Margaret on the phone an hour, all about Blackpool. She sounded like herself"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-07-15T18:20:41Z"
+    },
+    {
+      "id": "5857fd39-edc2-47ad-ab8a-1642c4e69826",
+      "kind": "symptom",
+      "occurred_at": "2026-07-14T20:04:00Z",
+      "occurred_at_precision": "exact",
+      "title": "Poor sleep, up four times overnight",
+      "body": "Third bad night in a week. Margaret was up four times and came downstairs twice.",
+      "actor": { "member_id": "f9cf5401-480c-46f0-a28a-07de2c049e0e", "display_name": "Sarah" },
+      "details": {
+        "symptom": "Disturbed sleep",
+        "severity": "moderate",
+        "body_site": null,
+        "duration_text": "most of the night"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "cf691291-d2a0-45e1-b1e0-0e53f7107e2d",
+          "sent_at": "2026-07-14T20:04:00Z",
+          "sender": "Sarah",
+          "quote": "she had a bad night again, up 4 times"
+        },
+        {
+          "message_id": "4e4b5d6c-4420-4561-a993-e05f96900d88",
+          "sent_at": "2026-07-14T20:09:00Z",
+          "sender": "Sarah",
+          "quote": "came down twice as well, I heard her on the stairs"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-07-14T22:31:08Z"
+    },
+    {
+      "id": "04648010-b242-4611-812d-70e68e8c3cf5",
+      "kind": "symptom",
+      "occurred_at": "2026-07-14T11:30:00Z",
+      "occurred_at_precision": "day",
+      "title": "Off her food, refused her tea",
+      "body": "Dot made her tea and she would not touch it. Fourth mention of a skipped meal this month.",
+      "actor": { "member_id": "02a9b6bf-6ad0-4036-96e0-acefc15d0806", "display_name": "Dot" },
+      "details": {
+        "symptom": "Poor appetite",
+        "severity": "unknown",
+        "body_site": null,
+        "duration_text": "since Sunday"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "642dfa53-3346-4101-b6a5-669635b56494",
+          "sent_at": "2026-07-14T11:34:00Z",
+          "sender": "Dot",
+          "quote": "made her a bit of tea and she wouldn't touch it"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-07-14T22:31:08Z"
+    },
+    {
+      "id": "08cd5642-4ddb-4198-8d8b-b5063a2523cf",
+      "kind": "note",
+      "occurred_at": "2026-07-13T18:05:00Z",
+      "occurred_at_precision": "day",
+      "title": "Tom and Priya visiting on Saturday",
+      "body": "Tom and Priya are coming over from Leeds on Saturday, so Sarah is taking the weekend off the rota.",
+      "actor": { "member_id": "a7d61c43-1c23-4cc6-873c-754098a1e074", "display_name": "Tom" },
+      "details": { "category": "logistics" },
+      "source_excerpts": [
+        {
+          "message_id": "1153645f-d83e-4e41-9b81-db72cc5e480f",
+          "sent_at": "2026-07-13T18:07:00Z",
+          "sender": "Tom",
+          "quote": "we'll come over Saturday, so you get a weekend Sarah"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-07-13T20:14:22Z"
+    },
+    {
+      "id": "591ca8bd-8510-461e-97d1-f2eea4a2bb92",
+      "kind": "medication",
+      "occurred_at": "2026-07-09T15:00:00Z",
+      "occurred_at_precision": "day",
+      "title": "Co-codamol repeat collected",
+      "body": "Tom picked up the repeat prescription from the pharmacy on Chorley Road.",
+      "actor": { "member_id": "a7d61c43-1c23-4cc6-873c-754098a1e074", "display_name": "Tom" },
+      "details": {
+        "medication_name": "Co-codamol",
+        "dose_text": "30/500, two as needed",
+        "action": "refilled",
+        "prescriber": "Dr Aziz"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "27eea10e-a14d-4072-a11e-dcd707f9ae2d",
+          "sent_at": "2026-07-09T15:02:00Z",
+          "sender": "Tom",
+          "quote": "picked up her co-codamol repeat, dropped it off on the way home"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-07-09T17:44:03Z"
+    },
+    {
+      "id": "bf47c836-dac6-41d4-a55c-02df3ddfc535",
+      "kind": "symptom",
+      "occurred_at": "2026-07-06T17:20:00Z",
+      "occurred_at_precision": "day",
+      "title": "Off her food, ate half a sandwich",
+      "body": "Priya sat with her at lunch and she managed half a sandwich and nothing else.",
+      "actor": { "member_id": "35d9867d-0ef4-4b06-a2f1-b22197516a3c", "display_name": "Priya" },
+      "details": {
+        "symptom": "Poor appetite",
+        "severity": "unknown",
+        "body_site": null,
+        "duration_text": "two days"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "3431a44c-0469-465b-a2a0-fb37efafa5ee",
+          "sent_at": "2026-07-06T17:21:00Z",
+          "sender": "Priya",
+          "quote": "she only had half a sandwich again, wouldn't have anything else"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-07-06T19:03:12Z"
+    },
+    {
+      "id": "c059845a-1535-4234-9913-a6c8e6d21cd1",
+      "kind": "appointment",
+      "occurred_at": "2026-07-02T08:30:00Z",
+      "occurred_at_precision": "exact",
+      "title": "Chiropody at home",
+      "body": "Margaret did not answer the door and the chiropodist left. She had no memory of the appointment.",
+      "actor": { "member_id": "35d9867d-0ef4-4b06-a2f1-b22197516a3c", "display_name": "Priya" },
+      "details": {
+        "appointment_kind": "other",
+        "provider_name": "Foot Care at Home",
+        "location": "Margaret's home",
+        "attendees": [],
+        "outcome": null,
+        "follow_up_actions": ["Rebook chiropody and put it on the fridge calendar"],
+        "status": "missed"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "284fcbd7-cc7c-4d1e-9634-86f6ae13ccd5",
+          "sent_at": "2026-07-02T10:15:00Z",
+          "sender": "Priya",
+          "quote": "chiropodist rang, she didn't answer the door. She says nobody told her"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-07-02T12:08:39Z"
+    },
+    {
+      "id": "728021c4-4ad1-437d-99bf-010c2d37edcb",
+      "kind": "note",
+      "occurred_at": "2026-06-27T10:10:00Z",
+      "occurred_at_precision": "day",
+      "title": "Carer visits going up to four mornings",
+      "body": "The agency can do four weekday mornings from July. Sarah and Tom agreed to split the extra cost.",
+      "actor": { "member_id": "f9cf5401-480c-46f0-a28a-07de2c049e0e", "display_name": "Sarah" },
+      "details": { "category": "finance" },
+      "source_excerpts": [
+        {
+          "message_id": "813516cb-f28f-43bc-b2a9-b200357b6586",
+          "sent_at": "2026-06-27T10:12:00Z",
+          "sender": "Sarah",
+          "quote": "agency can do 4 mornings from July, it's about £60 more a week"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-06-27T12:00:18Z"
+    },
+    {
+      "id": "0cfaab4c-ba5c-42bc-9d23-9a063bda08f2",
+      "kind": "medication",
+      "occurred_at": "2026-06-23T19:40:00Z",
+      "occurred_at_precision": "day",
+      "title": "Dizziness since starting amlodipine",
+      "body": "The family connected the dizzy spells to the amlodipine started three weeks earlier and agreed to raise it with Dr Aziz.",
+      "actor": { "member_id": "f9cf5401-480c-46f0-a28a-07de2c049e0e", "display_name": "Sarah" },
+      "details": {
+        "medication_name": "Amlodipine",
+        "dose_text": "5mg once daily",
+        "action": "side_effect",
+        "prescriber": "Dr Aziz"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "9fb840aa-4b30-4998-81d5-75e9ec78fc3f",
+          "sent_at": "2026-06-23T19:41:00Z",
+          "sender": "Sarah",
+          "quote": "she's only been dizzy since the amlodipine started, that can't be a coincidence"
+        },
+        {
+          "message_id": "1de814d8-7675-4b97-a229-88089635f95c",
+          "sent_at": "2026-06-23T19:58:00Z",
+          "sender": "Tom",
+          "quote": "worth asking Aziz, dizziness is on the leaflet"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-06-23T21:12:50Z"
+    },
+    {
+      "id": "845fc578-029f-45d2-af18-9f576c7fd1d8",
+      "kind": "symptom",
+      "occurred_at": "2026-06-18T08:05:00Z",
+      "occurred_at_precision": "exact",
+      "title": "Dizzy standing up from the chair",
+      "body": "Dot was there and had to steady her. It passed after a few seconds.",
+      "actor": { "member_id": "02a9b6bf-6ad0-4036-96e0-acefc15d0806", "display_name": "Dot" },
+      "details": {
+        "symptom": "Dizziness on standing",
+        "severity": "moderate",
+        "body_site": null,
+        "duration_text": "a few seconds"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "1cc1fd66-61ef-4327-8ae5-91d417992b4b",
+          "sent_at": "2026-06-18T08:07:00Z",
+          "sender": "Dot",
+          "quote": "she went dizzy getting up out of the chair, I had to grab her"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-06-18T09:44:02Z"
+    },
+    {
+      "id": "49380230-7b63-4b9e-b912-d33f9cf47424",
+      "kind": "appointment",
+      "occurred_at": "2026-06-15T09:45:00Z",
+      "occurred_at_precision": "exact",
+      "title": "Echocardiogram at Salford Royal",
+      "body": "Tom took her for the scan. Results go to Dr Aziz within a fortnight.",
+      "actor": { "member_id": "a7d61c43-1c23-4cc6-873c-754098a1e074", "display_name": "Tom" },
+      "details": {
+        "appointment_kind": "hospital",
+        "provider_name": "Salford Royal Cardiology",
+        "location": "Salford Royal Hospital",
+        "attendees": ["Tom", "Margaret"],
+        "outcome": "Scan completed, results to the GP within two weeks",
+        "follow_up_actions": ["Chase the echo results with Dr Aziz after 29 June"],
+        "status": "attended"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "c76a6054-034e-423d-808b-29eb784a9295",
+          "sent_at": "2026-06-15T11:20:00Z",
+          "sender": "Tom",
+          "quote": "scan done, no drama. Results go to the GP in a couple of weeks"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-06-15T13:05:27Z"
+    },
+    {
+      "id": "4f3bc1b2-f887-4ddf-8489-dc16065d8356",
+      "kind": "symptom",
+      "occurred_at": "2026-06-08T22:15:00Z",
+      "occurred_at_precision": "exact",
+      "title": "Poor sleep, up four times overnight",
+      "body": "Margaret was up four times. Sarah stayed over and did not get much sleep either.",
+      "actor": { "member_id": "f9cf5401-480c-46f0-a28a-07de2c049e0e", "display_name": "Sarah" },
+      "details": {
+        "symptom": "Disturbed sleep",
+        "severity": "moderate",
+        "body_site": null,
+        "duration_text": "all night"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "f4b0adc8-2060-4260-a5ce-3f4075259d81",
+          "sent_at": "2026-06-08T22:16:00Z",
+          "sender": "Sarah",
+          "quote": "up 4 times again last night, I stopped over and I'm shattered"
+        },
+        {
+          "message_id": "c32cf9d5-6d8a-4c48-a21d-6b5a71f2ab84",
+          "sent_at": "2026-06-08T22:31:00Z",
+          "sender": "Priya",
+          "quote": "is she napping in the afternoons? that might be part of it"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-06-09T00:02:14Z"
+    },
+    {
+      "id": "3eec949e-6f94-4b6f-9fba-9ce6eac989c3",
+      "kind": "note",
+      "occurred_at": "2026-06-08T12:30:00Z",
+      "occurred_at_precision": "day",
+      "title": "Attendance Allowance form posted",
+      "body": "Sarah added this by hand. The completed form went in the post; decisions usually take six to eight weeks.",
+      "actor": { "member_id": "f9cf5401-480c-46f0-a28a-07de2c049e0e", "display_name": "Sarah" },
+      "details": { "category": "admin" },
+      "source_excerpts": [],
+      "edited_at": null,
+      "created_at": "2026-06-08T12:31:00Z"
+    },
+    {
+      "id": "9aef131d-f12f-4fe0-a25b-8245c901cfb7",
+      "kind": "medication",
+      "occurred_at": "2026-06-03T16:20:00Z",
+      "occurred_at_precision": "day",
+      "title": "Started amlodipine 5mg",
+      "body": "Dr Aziz added amlodipine for the blood pressure that has been running high since February.",
+      "actor": { "member_id": "f9cf5401-480c-46f0-a28a-07de2c049e0e", "display_name": "Sarah" },
+      "details": {
+        "medication_name": "Amlodipine",
+        "dose_text": "5mg once daily",
+        "action": "started",
+        "prescriber": "Dr Aziz"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "6796dce2-7966-4463-9c72-028f9c27b21c",
+          "sent_at": "2026-06-03T16:22:00Z",
+          "sender": "Sarah",
+          "quote": "Aziz has put her on amlodipine 5mg for the blood pressure, one a morning"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-06-03T18:00:44Z"
+    },
+    {
+      "id": "9d2f9bd1-816e-45fd-abfd-6b3b53803165",
+      "kind": "symptom",
+      "occurred_at": "2026-05-30T07:55:00Z",
+      "occurred_at_precision": "day",
+      "title": "Swollen ankles by the evening",
+      "body": "Both ankles puffy by teatime for several days running. Better again by morning.",
+      "actor": { "member_id": "02a9b6bf-6ad0-4036-96e0-acefc15d0806", "display_name": "Dot" },
+      "details": {
+        "symptom": "Ankle swelling",
+        "severity": "mild",
+        "body_site": "both ankles",
+        "duration_text": "a few days"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "709fcf11-3dfd-439b-ac37-5f4281a97839",
+          "sent_at": "2026-05-30T07:58:00Z",
+          "sender": "Dot",
+          "quote": "her ankles were like balloons again by teatime, fine this morning though"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-05-30T09:30:11Z"
+    },
+    {
+      "id": "b39b84a9-1a80-4c27-8f61-f4bc1d17381e",
+      "kind": "appointment",
+      "occurred_at": "2026-05-21T11:00:00Z",
+      "occurred_at_precision": "exact",
+      "title": "GP appointment, Dr Aziz",
+      "body": "Sarah raised the memory lapses. Dr Aziz made a referral to the memory clinic and did a basic screen in the room.",
+      "actor": { "member_id": "f9cf5401-480c-46f0-a28a-07de2c049e0e", "display_name": "Sarah" },
+      "details": {
+        "appointment_kind": "gp",
+        "provider_name": "Dr Aziz",
+        "location": "Brookfield Surgery",
+        "attendees": ["Sarah", "Margaret"],
+        "outcome": "Referral made to the memory clinic",
+        "follow_up_actions": ["Wait for the memory clinic letter"],
+        "status": "attended"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "da31b977-0031-4c6a-b02d-9045a726a1c7",
+          "sent_at": "2026-05-21T12:40:00Z",
+          "sender": "Sarah",
+          "quote": "told him about the lunch thing and the keys. He's referring her to the memory clinic"
+        },
+        {
+          "message_id": "a47a1e03-1975-4a35-9f3b-b6f4a1971b94",
+          "sent_at": "2026-05-21T12:51:00Z",
+          "sender": "Tom",
+          "quote": "thank god. how long's the wait?"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-05-21T14:20:36Z"
+    },
+    {
+      "id": "28b534ca-a143-40d4-8a93-1da358a71cc8",
+      "kind": "medication",
+      "occurred_at": "2026-05-19T20:10:00Z",
+      "occurred_at_precision": "exact",
+      "title": "Missed her evening apixaban",
+      "body": "Tom noticed the evening dose still in the box when he called round.",
+      "actor": { "member_id": "a7d61c43-1c23-4cc6-873c-754098a1e074", "display_name": "Tom" },
+      "details": {
+        "medication_name": "Apixaban",
+        "dose_text": "5mg twice daily",
+        "action": "missed",
+        "prescriber": "Dr Whitfield"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "0bda0e8c-d783-4646-ab98-dbe5323a911d",
+          "sent_at": "2026-05-19T20:12:00Z",
+          "sender": "Tom",
+          "quote": "evening tablet still in the box when I got there"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-05-19T22:03:19Z"
+    },
+    {
+      "id": "160de3e6-bd2b-4e2d-afd6-2f5fe85181a0",
+      "kind": "note",
+      "occurred_at": "2026-05-06T18:40:00Z",
+      "occurred_at_precision": "day",
+      "title": "Care rota agreed for May",
+      "body": "Sarah weekdays, Tom and Priya alternate weekends, Dot on Wednesday afternoons.",
+      "actor": { "member_id": "f9cf5401-480c-46f0-a28a-07de2c049e0e", "display_name": "Sarah" },
+      "details": { "category": "logistics" },
+      "source_excerpts": [
+        {
+          "message_id": "fee944d3-333a-4d2a-bbae-543f63b48a39",
+          "sent_at": "2026-05-06T18:42:00Z",
+          "sender": "Sarah",
+          "quote": "so: me in the week, you two alternate weekends, Dot Wednesday afternoons. Agreed?"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-05-06T20:15:08Z"
+    },
+    {
+      "id": "19c76b04-0be8-4979-8c6d-9a179296aa71",
+      "kind": "appointment",
+      "occurred_at": "2026-05-06T08:00:00Z",
+      "occurred_at_precision": "exact",
+      "title": "Podiatry appointment",
+      "body": "Cancelled by the service the night before. Sarah is on the list to rebook.",
+      "actor": { "member_id": "f9cf5401-480c-46f0-a28a-07de2c049e0e", "display_name": "Sarah" },
+      "details": {
+        "appointment_kind": "therapy",
+        "provider_name": "Salford Community Podiatry",
+        "location": "Eccles Health Centre",
+        "attendees": [],
+        "outcome": null,
+        "follow_up_actions": ["Rebook podiatry"],
+        "status": "cancelled"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "303eb9a6-f93f-45a0-a80c-62038153e6b4",
+          "sent_at": "2026-05-05T19:30:00Z",
+          "sender": "Sarah",
+          "quote": "podiatry have cancelled tomorrow, no reason given"
+        },
+        {
+          "message_id": "4037c698-7806-465a-b477-19694afcd9cd",
+          "sent_at": "2026-05-06T09:11:00Z",
+          "sender": "Sarah",
+          "quote": "rang them, earliest rebook is August. I've asked to go on the cancellation list"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-05-06T11:02:47Z"
+    },
+    {
+      "id": "9f1083f5-2ce7-4847-9c7d-1a2e7b0ef6e5",
+      "kind": "symptom",
+      "occurred_at": "2026-05-04T00:00:00Z",
+      "occurred_at_precision": "week",
+      "title": "Forgot she had already had lunch",
+      "body": "Priya arrived at lunchtime to find Margaret making a sandwich, half an hour after the carer had recorded giving her lunch. Margaret was adamant she had not eaten. Priya sat with her while she ate a little. The family agreed not to correct her about it, and to start writing meals on the kitchen whiteboard so whoever visits can see what she has already had.",
+      "actor": { "member_id": "35d9867d-0ef4-4b06-a2f1-b22197516a3c", "display_name": "Priya" },
+      "details": {
+        "symptom": "Short-term memory lapse",
+        "severity": "unknown",
+        "body_site": null,
+        "duration_text": null
+      },
+      "source_excerpts": [
+        {
+          "message_id": "76c4c6a5-a445-4cd5-8645-b8c027599510",
+          "sent_at": "2026-05-12T12:48:00Z",
+          "sender": "Priya",
+          "quote": "sometime last week she was making a sandwich half an hour after the carer had done her lunch"
+        },
+        {
+          "message_id": "9eaa80b0-6dba-4d7f-b5af-00b14b12e0bc",
+          "sent_at": "2026-05-12T13:02:00Z",
+          "sender": "Sarah",
+          "quote": "don't argue with her about it. Let's start writing meals on the whiteboard"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-05-12T14:40:29Z"
+    },
+    {
+      "id": "344677d5-74ed-4b2c-bee2-f2aa4a1b6849",
+      "kind": "symptom",
+      "occurred_at": "2026-04-28T21:50:00Z",
+      "occurred_at_precision": "exact",
+      "title": "Poor sleep, up three times overnight",
+      "body": "First of the bad nights the family started tracking.",
+      "actor": { "member_id": "f9cf5401-480c-46f0-a28a-07de2c049e0e", "display_name": "Sarah" },
+      "details": {
+        "symptom": "Disturbed sleep",
+        "severity": "moderate",
+        "body_site": null,
+        "duration_text": "most of the night"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "3cc3ead9-c278-4147-a0fe-f4b7523e4272",
+          "sent_at": "2026-04-28T21:52:00Z",
+          "sender": "Sarah",
+          "quote": "she was up 3 times last night, that's twice this week now"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-04-28T23:11:05Z"
+    },
+    {
+      "id": "ee77ecf6-4964-41ac-a9e0-48fa7cf2ac09",
+      "kind": "medication",
+      "occurred_at": "2026-04-17T16:05:00Z",
+      "occurred_at_precision": "day",
+      "title": "Bisoprolol reduced to 1.25mg",
+      "body": "The surgery rang after the blood test and dropped the dose because her pulse was running low.",
+      "actor": { "member_id": "f9cf5401-480c-46f0-a28a-07de2c049e0e", "display_name": "Sarah" },
+      "details": {
+        "medication_name": "Bisoprolol",
+        "dose_text": "1.25mg once daily",
+        "action": "changed",
+        "prescriber": "Dr Aziz"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "a73b40b5-3e3f-4120-b84d-0864cb921cac",
+          "sent_at": "2026-04-17T16:07:00Z",
+          "sender": "Sarah",
+          "quote": "surgery rang, they're halving the bisoprolol, her pulse is too low"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-04-17T18:22:31Z"
+    },
+    {
+      "id": "9c640f60-7ae8-4186-9a7a-3ddb6c4cbf72",
+      "kind": "appointment",
+      "occurred_at": "2026-04-16T08:20:00Z",
+      "occurred_at_precision": "exact",
+      "title": "Blood test at Brookfield Surgery",
+      "body": "Priya took her for routine bloods, including INR and thyroid.",
+      "actor": { "member_id": "35d9867d-0ef4-4b06-a2f1-b22197516a3c", "display_name": "Priya" },
+      "details": {
+        "appointment_kind": "test",
+        "provider_name": "Brookfield Surgery",
+        "location": "Brookfield Surgery",
+        "attendees": ["Priya", "Margaret"],
+        "outcome": "Bloods taken for INR and thyroid",
+        "follow_up_actions": ["Chase the results with the surgery next week"],
+        "status": "attended"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "904aec95-1ca3-4ca8-83bd-3967fc22c7ff",
+          "sent_at": "2026-04-16T08:55:00Z",
+          "sender": "Priya",
+          "quote": "bloods done, she was very good about it. Results next week"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-04-16T10:30:52Z"
+    },
+    {
+      "id": "64e3e78a-cc6b-4f60-b469-d2ab0e356236",
+      "kind": "note",
+      "occurred_at": "2026-04-11T18:30:00Z",
+      "occurred_at_precision": "day",
+      "title": "Low after Dot went home",
+      "body": "Margaret was tearful in the evening after Dot's week with her ended.",
+      "actor": { "member_id": "02a9b6bf-6ad0-4036-96e0-acefc15d0806", "display_name": "Dot" },
+      "details": { "category": "mood" },
+      "source_excerpts": [
+        {
+          "message_id": "885e9af8-768c-4161-96e0-0436ebe066c8",
+          "sent_at": "2026-04-11T18:33:00Z",
+          "sender": "Dot",
+          "quote": "she was in tears when I left. I hate leaving her on her own"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-04-11T20:04:16Z"
+    },
+    {
+      "id": "913217f0-0bf8-4628-b64f-07e118187f76",
+      "kind": "symptom",
+      "occurred_at": "2026-04-02T12:15:00Z",
+      "occurred_at_precision": "exact",
+      "title": "Breathless walking to the shop",
+      "body": "Margaret had to stop twice on the way to the corner shop and could not finish a sentence. It settled after ten minutes sitting down.",
+      "actor": { "member_id": "f9cf5401-480c-46f0-a28a-07de2c049e0e", "display_name": "Sarah" },
+      "details": {
+        "symptom": "Breathlessness on exertion",
+        "severity": "severe",
+        "body_site": "chest",
+        "duration_text": "about 10 minutes"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "59057921-cc04-4cf5-a751-f9b390569423",
+          "sent_at": "2026-04-02T12:19:00Z",
+          "sender": "Sarah",
+          "quote": "she had to stop twice walking to the shop, couldn't get a sentence out"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-04-02T14:00:23Z"
+    },
+    {
+      "id": "034c8487-9fce-4442-a215-839bb48d1226",
+      "kind": "note",
+      "occurred_at": "2026-03-30T15:12:00Z",
+      "occurred_at_precision": "day",
+      "title": "Grab rail fitted in the bathroom",
+      "body": "Tom fitted the grab rail the OT recommended, by the bath.",
+      "actor": { "member_id": "a7d61c43-1c23-4cc6-873c-754098a1e074", "display_name": "Tom" },
+      "details": { "category": "equipment" },
+      "source_excerpts": [
+        {
+          "message_id": "ed062598-79ba-4c54-b346-094c83a7d37c",
+          "sent_at": "2026-03-30T15:14:00Z",
+          "sender": "Tom",
+          "quote": "grab rail's up by the bath, took ten minutes"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-03-30T17:01:40Z"
+    },
+    {
+      "id": "c54f4589-ac66-4706-be00-74f67300e31d",
+      "kind": "symptom",
+      "occurred_at": "2026-03-18T11:02:00Z",
+      "occurred_at_precision": "unknown",
+      "title": "Left hip pain worse on the stairs",
+      "body": "Dot reported the hip has been getting worse for a long time; nobody could put a date on when it started.",
+      "actor": { "member_id": "02a9b6bf-6ad0-4036-96e0-acefc15d0806", "display_name": "Dot" },
+      "details": {
+        "symptom": "Hip pain",
+        "severity": "moderate",
+        "body_site": "left hip",
+        "duration_text": "months"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "06ca9c1f-35ee-4793-b9df-f11f2600cd5f",
+          "sent_at": "2026-03-18T11:02:00Z",
+          "sender": "Dot",
+          "quote": "that hip's been getting worse for ages, she goes down the stairs sideways now"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-03-18T13:20:58Z"
+    },
+    {
+      "id": "20434a33-365a-4eaa-8b8c-01437eb332df",
+      "kind": "medication",
+      "occurred_at": "2026-03-05T17:45:00Z",
+      "occurred_at_precision": "exact",
+      "title": "Started apixaban 5mg twice daily",
+      "body": "Started the same afternoon as the cardiology appointment, for stroke prevention in atrial fibrillation.",
+      "actor": { "member_id": "f9cf5401-480c-46f0-a28a-07de2c049e0e", "display_name": "Sarah" },
+      "details": {
+        "medication_name": "Apixaban",
+        "dose_text": "5mg twice daily",
+        "action": "started",
+        "prescriber": "Dr Whitfield"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "f2316b2c-84a2-4c9a-83ca-b7d45c0c154a",
+          "sent_at": "2026-03-05T17:47:00Z",
+          "sender": "Sarah",
+          "quote": "picked up the apixaban, 5mg morning and night starting tonight"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-03-05T19:30:12Z"
+    },
+    {
+      "id": "6d119082-1442-4865-b0d3-ef68100f071e",
+      "kind": "appointment",
+      "occurred_at": "2026-03-05T14:30:00Z",
+      "occurred_at_precision": "exact",
+      "title": "Cardiology clinic, Salford Royal",
+      "body": "Atrial fibrillation confirmed. Started on apixaban, cardiology follow-up in three months.",
+      "actor": { "member_id": "f9cf5401-480c-46f0-a28a-07de2c049e0e", "display_name": "Sarah" },
+      "details": {
+        "appointment_kind": "specialist",
+        "provider_name": "Dr Whitfield",
+        "location": "Salford Royal Hospital",
+        "attendees": ["Sarah", "Margaret"],
+        "outcome": "Atrial fibrillation confirmed; started on apixaban",
+        "follow_up_actions": [
+          "Start apixaban 5mg twice daily",
+          "Cardiology follow-up in three months"
+        ],
+        "status": "attended"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "148e2868-a59a-4f2d-b4fd-e0f26e123ee2",
+          "sent_at": "2026-03-05T16:10:00Z",
+          "sender": "Sarah",
+          "quote": "it's atrial fibrillation. They're putting her on a blood thinner, apixaban"
+        },
+        {
+          "message_id": "a6abdf10-3d32-4128-bb57-7a7fd41bf440",
+          "sent_at": "2026-03-05T16:22:00Z",
+          "sender": "Tom",
+          "quote": "is that the one where she can't take ibuprofen?"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-03-05T18:04:55Z"
+    },
+    {
+      "id": "ed1b30ee-641a-4a40-b4ac-8442dc7495f0",
+      "kind": "appointment",
+      "occurred_at": "2026-02-26T10:20:00Z",
+      "occurred_at_precision": "exact",
+      "title": "Annual review with Dr Aziz",
+      "body": "Routine annual review. Blood pressure running high; Dr Aziz referred her to cardiology over an irregular pulse.",
+      "actor": { "member_id": "f9cf5401-480c-46f0-a28a-07de2c049e0e", "display_name": "Sarah" },
+      "details": {
+        "appointment_kind": "gp",
+        "provider_name": "Dr Aziz",
+        "location": "Brookfield Surgery",
+        "attendees": ["Sarah", "Margaret"],
+        "outcome": "Blood pressure high, irregular pulse; referred to cardiology",
+        "follow_up_actions": ["Wait for the cardiology appointment", "Recheck blood pressure"],
+        "status": "attended"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "5a572131-890c-48f0-bbe0-8b61fc545f90",
+          "sent_at": "2026-02-26T11:40:00Z",
+          "sender": "Sarah",
+          "quote": "her BP was 168/94 and he says her pulse is all over the place. Referring her to cardiology"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-02-26T13:15:31Z"
+    },
+    {
+      "id": "9bb56f55-b264-4f0d-bdf2-a7ee06d24f81",
+      "kind": "symptom",
+      "occurred_at": "2026-02-14T09:40:00Z",
+      "occurred_at_precision": "day",
+      "title": "Dizzy standing up",
+      "body": "First mention of the dizziness. Sarah put it down to getting up too quickly.",
+      "actor": { "member_id": "f9cf5401-480c-46f0-a28a-07de2c049e0e", "display_name": "Sarah" },
+      "details": {
+        "symptom": "Dizziness on standing",
+        "severity": "mild",
+        "body_site": null,
+        "duration_text": "a few seconds"
+      },
+      "source_excerpts": [
+        {
+          "message_id": "a19a71e0-9587-41a7-b629-bde1e6def71f",
+          "sent_at": "2026-02-14T09:43:00Z",
+          "sender": "Sarah",
+          "quote": "she said she went a bit dizzy getting up this morning. Told her to take her time"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-02-14T11:02:19Z"
+    },
+    {
+      "id": "873dc334-4b65-4603-b1d7-f2f03fc15a31",
+      "kind": "note",
+      "occurred_at": "2026-02-01T00:00:00Z",
+      "occurred_at_precision": "month",
+      "title": "Key safe fitted at the front door",
+      "body": "Tom fitted a key safe so the carers can let themselves in. The code was shared with the agency and with Dot.",
+      "actor": { "member_id": "a7d61c43-1c23-4cc6-873c-754098a1e074", "display_name": "Tom" },
+      "details": { "category": "logistics" },
+      "source_excerpts": [
+        {
+          "message_id": "abfe04f3-ff30-4017-824a-6136057fa44a",
+          "sent_at": "2026-02-09T19:12:00Z",
+          "sender": "Tom",
+          "quote": "key safe went on back at the start of the month, code's the same as the garage"
+        }
+      ],
+      "edited_at": null,
+      "created_at": "2026-02-09T20:41:07Z"
+    }
+  ],
+  "next_before": null
+}

@@ -189,8 +189,12 @@ Node stage builds `frontend/dist`, Python stage runs FastAPI and serves those fi
 ```json
 {
   "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile"
+  },
   "deploy": {
-    "startCommand": "gunicorn app.main:app -k uvicorn.workers.UvicornWorker --bind [::]:$PORT",
+    "startCommand": "gunicorn app.main:app -k uvicorn.workers.UvicornWorker --bind [::]:$PORT --workers 2 --timeout 120",
     "preDeployCommand": ["alembic upgrade head"],
     "healthcheckPath": "/api/health",
     "healthcheckTimeout": 300,

@@ -1,0 +1,84 @@
+/*
+ * A view over the same events the feed renders, not a second kind of thing — so it borrows the
+ * card's `--kind` hue per row and stays visually one family with the history below it.
+ */
+
+.panel {
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 28px;
+}
+
+.heading {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  --kind: var(--kind-note);
+
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 2px 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--accent-border);
+}
+
+.row:first-child {
+  border-top: 0;
+}
+
+.symptom {
+  --kind: var(--kind-symptom);
+}
+.appointment {
+  --kind: var(--kind-appointment);
+}
+.medication {
+  --kind: var(--kind-medication);
+}
+.note {
+  --kind: var(--kind-note);
+}
+
+/* The countdown is the reason to look at this panel, so it gets the strongest position. */
+.countdown {
+  grid-row: span 2;
+  align-self: center;
+  min-width: 5.5em;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-h);
+  border-left: 3px solid var(--kind);
+  padding-left: 10px;
+}
+
+.title {
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.when {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.kind {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--kind);
+}
+
+.sep {
+  opacity: 0.5;
+  margin: 0 5px;
+}

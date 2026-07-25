@@ -1,0 +1,187 @@
+/*
+ * One card per event. Each kind sets `--kind` on the article and every accent inside — rail,
+ * chip, quote rule — reads that one variable, so a kind's whole treatment is one declaration
+ * instead of four parallel rulesets that drift apart.
+ *
+ * Colour never carries meaning on its own here: the hue always sits beside the kind's name, and
+ * every severity, status and action is spelled out in words as well.
+ */
+
+.card {
+  --kind: var(--kind-note);
+
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 14px 16px 14px 18px;
+  overflow: hidden;
+}
+
+/* The left rail is the at-a-glance kind signal; the chip below it is the readable one. */
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--kind);
+}
+
+.symptom {
+  --kind: var(--kind-symptom);
+}
+.appointment {
+  --kind: var(--kind-appointment);
+}
+.medication {
+  --kind: var(--kind-medication);
+}
+.note {
+  --kind: var(--kind-note);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--kind);
+  background: color-mix(in oklab, var(--kind) 12%, transparent);
+  border-radius: 999px;
+  padding: 2px 9px;
+  flex: none;
+}
+
+.glyph {
+  flex: none;
+}
+
+.when {
+  font-size: 13px;
+  color: var(--text);
+  margin-left: auto;
+}
+
+/* An inferred date is not a recorded one, so it is marked rather than rendered as certain. */
+.approx {
+  font-style: italic;
+}
+
+.edited {
+  font-size: 12px;
+  color: var(--warn);
+  border: 1px solid currentcolor;
+  border-radius: 999px;
+  padding: 0 7px;
+  flex: none;
+}
+
+.title {
+  margin: 8px 0 0;
+  font-size: 17px;
+  line-height: 130%;
+  color: var(--text-h);
+}
+
+.byline {
+  margin-top: 3px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.who {
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.body {
+  margin-top: 8px;
+  line-height: 150%;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+  font-size: 14px;
+  color: var(--text-h);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 11px;
+}
+
+.badgeLabel {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.toneOk {
+  color: var(--ok);
+  border-color: currentcolor;
+  background: transparent;
+}
+
+.toneWarn {
+  color: var(--warn);
+  border-color: currentcolor;
+  background: transparent;
+}
+
+.toneDanger {
+  color: var(--danger);
+  border-color: currentcolor;
+  background: var(--danger-bg);
+}
+
+/* Severity as a filled meter — the word beside it is what actually conveys the level. */
+.meter {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.meterStep {
+  width: 5px;
+  height: 11px;
+  border-radius: 1px;
+  background: color-mix(in oklab, var(--kind) 22%, transparent);
+}
+
+.meterStepOn {
+  background: var(--kind);
+}
+
+.facts {
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 3px 14px;
+  font-size: 15px;
+}
+
+/* The <dt>/<dd> pair needs a wrapper to be keyed in React; `contents` keeps it out of the grid. */
+.factRow {
+  display: contents;
+}
+
+.factLabel {
+  color: var(--text);
+}
+
+.factValue {
+  margin: 0;
+  color: var(--text-h);
+  overflow-wrap: anywhere;
+}

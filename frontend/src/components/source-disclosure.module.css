@@ -1,0 +1,109 @@
+/*
+ * The evidence panel. Styled to read as a quoted record — a rule down the left, the words
+ * verbatim, the sender and the exact clock time underneath — rather than as small print.
+ */
+
+.disclosure {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+  list-style: none;
+  border-radius: var(--radius);
+  padding: 2px 4px;
+  margin: -2px -4px;
+}
+
+/* Safari still paints the default triangle without this. */
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.summary:hover {
+  color: var(--text-h);
+}
+
+.summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.chevron {
+  transition: transform 120ms ease;
+  color: var(--kind, var(--accent));
+  flex: none;
+}
+
+.disclosure[open] .chevron {
+  transform: rotate(90deg);
+}
+
+.quotes {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.figure {
+  margin: 0;
+  border-left: 3px solid var(--kind, var(--accent-border));
+  padding-left: 12px;
+}
+
+/*
+ * The quote marks are decoration around text that is already in a <blockquote>, so they are
+ * generated rather than written into the DOM: a screen reader announces the quotation once.
+ */
+.quote {
+  margin: 0;
+  color: var(--text-h);
+  font-size: 15px;
+  line-height: 145%;
+}
+
+.quote::before {
+  content: '\201C';
+}
+
+.quote::after {
+  content: '\201D';
+}
+
+.attribution {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.sender {
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.sep {
+  opacity: 0.5;
+}
+
+/* A human-authored event has no message behind it. Say so rather than showing nothing. */
+.authored {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  font-size: 14px;
+  color: var(--text);
+}

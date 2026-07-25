@@ -1,0 +1,12 @@
+{
+  "household": {
+    "id": "0d4f8b2e-1c8a-4c1e-9f6a-3b7d2e5a91cc",
+    "name": "The Doyles",
+    "care_recipient_name": "Margaret",
+    "timezone": "Europe/London"
+  },
+  "counts": {
+    "events": 41,
+    "messages": 2114
+  }
+}

@@ -1,0 +1,51 @@
+MIGRATIONS SQUASH FREELY UNTIL THE FIRST REAL FAMILY'S DATA IS IN A DEPLOYED DB;
+ADDITIVE ONLY AFTER.
+
+Before that line is crossed, the right response to a messy migration history is to delete
+every file in versions/, drop and recreate the database, and regenerate one clean initial
+migration. Nobody's data exists to lose, and a tidy schema is worth more than a tidy audit
+trail. After it is crossed, every migration is additive — add a nullable column, backfill,
+then tighten — because a downgrade on live family health data is not a thing that gets to
+happen.
+
+
+Running them
+------------
+
+Everything below runs from `backend/`.
+
+    docker compose -f ../docker-compose.yml up -d
+    export PENNY_TEST_DATABASE_URL=postgresql+asyncpg://penny:penny@localhost:5432/penny_test
+
+    uv run alembic upgrade head
+    uv run alembic downgrade base                          # round-trip check
+    uv run alembic revision --autogenerate -m "what changed"
+
+env.py takes its URL from `app.config`, not from alembic.ini: `-x url=...` beats `DATABASE_URL`
+beats `PENNY_TEST_DATABASE_URL`. In production Railway runs `alembic upgrade head` as the
+`penny` service's preDeployCommand, where only `DATABASE_URL` is set.
+
+
+Autogenerate is a draft, not an answer
+--------------------------------------
+
+Read every generated file before committing it. Three things it gets wrong here:
+
+  * Partial and expression indexes (`WHERE wa_jid IS NOT NULL`, `lower(display_name)`) are the
+    idempotency guarantees of this schema, not tuning. If a diff proposes dropping one, the
+    models are wrong, not the database.
+  * Data migrations are never generated. A column that must be backfilled needs the backfill
+    written by hand between the add and the NOT NULL.
+  * A table whose model is not imported by `app/models.py` is invisible to the metadata and
+    autogenerate will emit `op.drop_table` for it.
+
+After generating, re-run `--autogenerate` once more: a second, empty migration is the proof
+that the models and the database now agree. Delete that probe file.
+
+
+Two branches, two migrations
+----------------------------
+
+Only Track B generates migrations before M4. Any other branch that needs one rebases onto the
+latest head and regenerates. Never hand-edit `down_revision` to splice a file into the chain —
+that is how you get two heads and an `alembic upgrade head` that silently applies neither.
