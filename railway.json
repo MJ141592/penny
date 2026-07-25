@@ -5,7 +5,6 @@
     "dockerfilePath": "Dockerfile"
   },
   "deploy": {
-    "startCommand": "gunicorn app.main:app -k uvicorn.workers.UvicornWorker --bind [::]:$PORT --workers 2 --timeout 120",
     "preDeployCommand": ["alembic upgrade head"],
     "healthcheckPath": "/api/health",
     "healthcheckTimeout": 300,

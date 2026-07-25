@@ -69,7 +69,10 @@ USER penny
 
 EXPOSE 8000
 
-# Mirrors railway.json's startCommand so `docker run` behaves like the deploy.
+# The ONLY start command. railway.json deliberately sets no startCommand: Railway runs that
+# field without a shell, so `$PORT` arrives at gunicorn as the literal four characters and it
+# dies with "'$PORT' is not a valid port number" on every replica. The `sh -c` wrapper here
+# does the expansion, and `exec` keeps gunicorn as PID 1 so it still gets SIGTERM.
 #   gunicorn, not uvicorn — uvicorn cannot dual-stack bind; `--host ::` is IPv6-only and
 #     breaks Railway's public healthcheck. `[::]` must keep its brackets: a bare `::`
 #     yields ":::8000" and fails net.SplitHostPort.
