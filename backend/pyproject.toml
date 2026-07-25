@@ -8,7 +8,7 @@ requires-python = ">=3.12"
 # branch has to touch this manifest (lockfile conflicts are regenerations, not merges).
 dependencies = [
     "fastapi>=0.115",
-    "uvicorn[standard]>=0.30",
+    "uvicorn[standard]>=0.51.0",
     # Production server: uvicorn alone cannot dual-stack bind on Railway.
     "gunicorn>=23",
     # >=2.0: 1.x could resolve to a version predating the Responses API.
