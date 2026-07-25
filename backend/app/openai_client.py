@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+import httpx
 from openai import AsyncOpenAI
 
 from app.config import get_settings
@@ -23,4 +24,10 @@ def get_openai_client() -> AsyncOpenAI:
     return AsyncOpenAI(
         api_key=settings.openai_api_key,
         base_url=settings.openai_base_url,
+        # app/llm/gateway.py owns retries so every attempt gets an llm_runs row;
+        # the SDK's silent internal retries would make that accounting a lie.
+        max_retries=0,
+        # A high-effort report can think for a long time, but a dead connection
+        # should fail fast rather than hold a request for 90s.
+        timeout=httpx.Timeout(90.0, connect=10.0),
     )

@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# CI only reads the repo; no packages, no deployments, no token writes.
+permissions:
+  contents: read
+
+# A new push to the same ref makes the in-flight run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      # --frozen: CI must fail on a stale uv.lock rather than silently resolving new versions.
+      - name: Install dependencies
+        run: uv sync --all-groups --frozen
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Format check
+        run: uv run ruff format --check .
+
+      # The `live` marker hits the real OpenAI API and costs money. This filter is
+      # load-bearing: CI has no OPENAI_API_KEY secret and must never acquire one.
+      - name: Tests
+        run: uv run pytest -m "not live" -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # `tsc -b && vite build` — type errors under strict are the frontend's only test suite for now.
+      - name: Build
+        run: npm run build

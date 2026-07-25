@@ -12,6 +12,11 @@ node_modules/
 dist/
 *.local
 
+# Lockfiles are committed on purpose — CI installs with `uv sync --frozen` and `npm ci`,
+# both of which fail without them. Never add these to the ignore rules above.
+!backend/uv.lock
+!frontend/package-lock.json
+
 # Env / OS / editors
 .env
 .env.*

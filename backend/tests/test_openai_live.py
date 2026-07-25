@@ -22,12 +22,20 @@ pytestmark = [
 
 
 @pytest.mark.asyncio
-async def test_chat_completion_round_trip() -> None:
+async def test_responses_round_trip() -> None:
+    """Proves the model id, the Responses API shape and the key work together.
+
+    gpt-5.5 rejects max_tokens outright, and reasoning tokens bill against
+    max_output_tokens, so 64 with effort="none" is the cheapest honest round trip.
+    """
     settings = get_settings()
-    response = await get_openai_client().chat.completions.create(
-        model=settings.openai_model,
-        messages=[{"role": "user", "content": "Reply with exactly: pong"}],
-        max_tokens=5,
+    response = await get_openai_client().responses.create(
+        model=settings.llm_model_extract,
+        input="Reply with exactly: pong",
+        max_output_tokens=64,
+        reasoning={"effort": "none"},
     )
-    assert response.choices[0].message.content.strip().lower() == "pong"
-    assert response.usage.completion_tokens > 0
+    # A truncated response still carries text; without this it would pass silently.
+    assert response.status == "completed"
+    assert response.output_text.strip().lower() == "pong"
+    assert response.usage.output_tokens > 0
