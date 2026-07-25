@@ -119,6 +119,7 @@ async def _call(
     *,
     http_timeout: httpx.Timeout,
     json: dict[str, Any] | None = None,
+    params: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any] | None, str | None]:
     """One request. Returns `(results, None)` or `(None, reason)` — never raises.
 
@@ -131,7 +132,7 @@ async def _call(
         return None, UNCONFIGURED
     try:
         async with httpx.AsyncClient(base_url=base, auth=_auth(), timeout=http_timeout) as client:
-            response = await client.request(method, path, json=json)
+            response = await client.request(method, path, json=json, params=params)
             response.raise_for_status()
             return _unwrap(response.json()), None
     except httpx.HTTPStatusError as exc:
@@ -143,23 +144,69 @@ async def _call(
         return None, UNREACHABLE
 
 
+async def list_devices() -> tuple[list[dict[str, Any]] | None, str | None]:
+    """`GET /devices` — the only device endpoint v9 serves without a device id.
+
+    Verified against the deployed v9.0.0 image: every `/app/*` route answers
+    `400 {"code":"DEVICE_ID_REQUIRED"}` unless you pass `device_id` as a query parameter or
+    `X-Device-Id` header. Before the first pairing there is no id to pass, so `/app/status`
+    is unreachable by construction and `/devices` is the only way to ask "is anything paired?".
+    `results` is `null`, not `[]`, when nothing is.
+    """
+    results, error = await _call("GET", "/devices", http_timeout=STATUS_TIMEOUT)
+    if error is not None:
+        return None, error
+    devices = results.get("results") if isinstance(results, dict) else None
+    return ([d for d in devices if isinstance(d, dict)] if isinstance(devices, list) else []), None
+
+
 async def get_status() -> GowaStatus:
-    """Link health. Called by `/api/whatsapp/status`, which the settings screen polls at 30s."""
-    results, error = await _call("GET", "/app/status", http_timeout=STATUS_TIMEOUT)
-    if results is None:
+    """Link health. Called by `/api/whatsapp/status`, which the settings screen polls at 30s.
+
+    Two hops, because v9 split them: `/devices` to learn whether anything is paired, then
+    `/app/status?device_id=...` for that device's live connection state. Collapsing the
+    "sidecar is down" and "sidecar is up, nothing paired yet" cases into one `available=False`
+    sends someone debugging private networking when the real answer is that nobody has scanned
+    the QR code.
+    """
+    devices, error = await list_devices()
+    if devices is None:
         return GowaStatus(available=False, error=error)
+    if not devices:
+        # The sidecar answered — it is healthy, there is simply no session to report on.
+        return GowaStatus(available=True, is_connected=False, is_logged_in=False)
+
+    device_id = _as_str(devices[0].get("device_id")) or _as_str(devices[0].get("id"))
+    results, error = await _call(
+        "GET", "/app/status", params={"device_id": device_id}, http_timeout=STATUS_TIMEOUT
+    )
+    if results is None:
+        return GowaStatus(available=False, device_id=device_id, error=error)
     return GowaStatus(
         available=True,
         is_connected=bool(results.get("is_connected")),
         is_logged_in=bool(results.get("is_logged_in")),
-        device_id=_as_str(results.get("device_id")),
+        device_id=_as_str(results.get("device_id")) or device_id,
         jid=_as_str(results.get("jid")),
     )
 
 
 async def start_login() -> GowaLogin:
-    """Request a pairing QR. BLOCKS for up to ~120s — never call this from a polling path."""
-    results, error = await _call("GET", "/app/login", http_timeout=LOGIN_TIMEOUT)
+    """Request a pairing QR. BLOCKS for up to ~120s — never call this from a polling path.
+
+    UNVERIFIED against v9, deliberately: confirming it means completing a real pairing with a
+    physical phone, which is the M1b spike. Every other `/app/*` route on the deployed image
+    demands a device id, but `/app/login` is the route that CREATES a device, so it cannot
+    require one for the first pairing. We therefore send the id only for a re-pair, where one
+    exists, and fall back to no id. If v9 turns out to want a device created first, this is
+    where it will show up — the error body says exactly what is missing.
+    """
+    devices, _ = await list_devices()
+    device_id = None
+    if devices:
+        device_id = _as_str(devices[0].get("device_id")) or _as_str(devices[0].get("id"))
+    params = {"device_id": device_id} if device_id else None
+    results, error = await _call("GET", "/app/login", params=params, http_timeout=LOGIN_TIMEOUT)
     if results is None:
         return GowaLogin(available=False, error=error)
     duration = results.get("qr_duration")

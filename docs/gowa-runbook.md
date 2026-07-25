@@ -112,11 +112,32 @@ Link with phone number instead.
 
 ### 4. Confirm the pairing
 
+> **v9 requires a device id on every `/app/*` route.** Verified against the deployed
+> `v9.0.0` image on 2026-07-25 — this is a breaking change from the v8-era docs these notes
+> were written from. Without it you get, on *every* `/app/*` path including `/app/status`,
+> `/app/devices` and `/app/reconnect`:
+>
+> ```json
+> {"code":"DEVICE_ID_REQUIRED","message":"device_id is required via X-Device-Id header or device_id query"}
+> ```
+>
+> The status is **400, not 401**, so it is easy to misread as a credentials problem when it is
+> not. Before the first pairing there is no id to send, which makes `/app/status` unreachable
+> by construction. Use **`GET /devices`** — the one device route that needs no id — to ask
+> whether anything is paired at all. It returns `{"code":"SUCCESS","results":null}` when
+> nothing is (`null`, not `[]`).
+
 ```sh
-curl -u penny:<password> https://<gowa-domain>/app/status
+# Is anything paired? Works before the first pairing.
+curl -u penny:<password> https://<gowa-domain>/devices
+
+# Once a device exists, its live state:
+curl -u penny:<password> "https://<gowa-domain>/app/status?device_id=<device_id>"
 ```
 
 Returns `{is_connected, is_logged_in, device_id, jid}`. Both booleans must be true.
+`app/gowa.py`'s `get_status()` does exactly these two hops, which is why it can tell
+"sidecar is down" apart from "sidecar is up, nothing paired yet".
 
 **Write down `jid`.** It is the paired number, and the acceptance criterion is defined against it:
 the captured webhook's `from` must *not* be this value.
