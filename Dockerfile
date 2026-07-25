@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# One image, two stages. The SPA is built with node and then served by FastAPI from the
+# One image, three stages. The SPA is built with node and then served by FastAPI from the
 # same origin as /api, which is what deletes CORS, SameSite=None and CSRF. That is why the
 # frontend has no container of its own.
 #
@@ -19,36 +19,43 @@ COPY frontend/ ./
 # `tsc -b && vite build` — a type error under strict fails the image, not the deploy.
 RUN npm run build
 
-# ---------- stage 2: the app ----------
-FROM python:3.12-slim AS runtime
+# ---------- stage 2: resolve dependencies ----------
+# uv comes from its own image at a pinned tag, matching the uv that wrote uv.lock —
+# `:latest` is a moving target that can change resolution between two builds of the same
+# commit.
+#
+# COPYed into a build-only stage rather than bind-mounted with `--mount=from=`: Railway's
+# Metal builder rejects that flag outright ("missing a type=cache argument"), even though
+# local BuildKit accepts it. The builder stage keeps uv out of the runtime image anyway,
+# which is what the mount was for — nothing at runtime needs it, including
+# `alembic upgrade head`, because the venv is on PATH.
+FROM python:3.12-slim AS builder
 
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
-    UV_PYTHON_DOWNLOADS=never \
-    PYTHONDONTWRITEBYTECODE=1 \
+    UV_PYTHON_DOWNLOADS=never
+
+WORKDIR /app
+COPY --from=ghcr.io/astral-sh/uv:0.11.19 /uv /usr/local/bin/uv
+
+# Dependencies before app code, so editing a router does not reinstall SQLAlchemy.
+# --no-install-project is what makes that split possible: without it uv needs app/ present.
+COPY backend/pyproject.toml backend/uv.lock backend/.python-version ./
+RUN uv sync --frozen --no-dev --no-install-project
+
+COPY backend/ ./
+RUN uv sync --frozen --no-dev
+
+# ---------- stage 3: the runtime image ----------
+FROM python:3.12-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/app/.venv/bin:$PATH" \
     PORT=8000
 
 WORKDIR /app
-
-# uv comes from its own image at a pinned tag, matching the uv that wrote uv.lock —
-# `:latest` is a moving target that can change resolution between two builds of the same
-# commit. It is *mounted*, not COPYed: a build tool has no business in the runtime image,
-# and it is 50 MB. Nothing at runtime needs it, including `alembic upgrade head`, because
-# the venv is on PATH.
-#
-# Dependencies before app code, so editing a router does not reinstall SQLAlchemy.
-# --no-install-project is what makes that split possible: without it uv needs app/ present.
-COPY backend/pyproject.toml backend/uv.lock backend/.python-version ./
-RUN --mount=from=ghcr.io/astral-sh/uv:0.11.19,source=/uv,target=/usr/local/bin/uv \
-    --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-install-project
-
-COPY backend/ ./
-RUN --mount=from=ghcr.io/astral-sh/uv:0.11.19,source=/uv,target=/usr/local/bin/uv \
-    --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev
+COPY --from=builder /app /app
 
 # Beside the app package, where app/spa.py looks first (/app/static).
 COPY --from=frontend /build/dist ./static
