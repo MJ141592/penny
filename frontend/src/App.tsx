@@ -7,6 +7,7 @@ import { LoginRoute } from './routes/login'
 import { NotFoundRoute, RouteErrorBoundary } from './routes/not-found'
 import { ReportRoute } from './routes/report'
 import { SettingsRoute } from './routes/settings'
+import { WelcomeRoute } from './routes/welcome'
 
 /**
  * Client-side routing only. The SPA is served from the same origin as the API, so every path
@@ -21,6 +22,10 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <FeedRoute /> },
       { path: 'login', element: <LoginRoute /> },
+      // Where a family that followed the link out of their WhatsApp group lands. Reachable on its
+      // own so the setup step can be re-opened, and redirected to from `/` while the household
+      // still has no care recipient — see the layout's Gate.
+      { path: 'welcome', element: <WelcomeRoute /> },
       { path: 'settings', element: <SettingsRoute /> },
       { path: 'import', element: <ImportRoute /> },
       { path: 'reports/:id', element: <ReportRoute /> },

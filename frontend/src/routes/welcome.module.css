@@ -1,0 +1,153 @@
+/*
+ * The first-run screens. A narrower column than the rest of the app on purpose: this is the one
+ * place where the family is reading rather than scanning, and a 620px measure is what stops the
+ * three paragraphs that matter from being skimmed past.
+ *
+ * Every colour is a token, so both schemes are the same design rather than two — the accent block
+ * and the recommendation block are tinted with `color-mix` against tokens that already flip.
+ */
+
+.wrap {
+  max-width: 620px;
+}
+
+.eyebrow {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+.lede {
+  line-height: 160%;
+  margin-top: 10px;
+}
+
+/*
+ * Sized to the form it holds, not to the column: the shared `.form` is capped at 420px because a
+ * text field the width of a paragraph is unreadable, and a card wider than its own contents just
+ * looks like something failed to load.
+ */
+.card {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  margin-top: 20px;
+  width: 466px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/*
+ * The reason the name matters. Given the weight of a pull quote rather than a form hint, because
+ * it is the only thing on the screen that changes what the family types.
+ */
+.why {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-bg);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 12px 14px;
+  font-size: 15px;
+  line-height: 160%;
+  color: var(--text-h);
+}
+
+.why strong {
+  font-weight: 600;
+}
+
+/* The timezone made checkable: a clock to hold up against the one on the wall. */
+.clock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: 10px 12px;
+}
+
+.clockLabel {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text);
+}
+
+.clockStamp {
+  font-family: var(--mono);
+  font-size: 15px;
+  color: var(--text-h);
+}
+
+/* ------------------------------------------------------------------------ what happens next -- */
+
+.next {
+  margin: 20px 0 24px;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.next li {
+  counter-increment: step;
+  position: relative;
+  padding: 0 0 16px 40px;
+  line-height: 160%;
+}
+
+.next li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 1px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--text-h);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.next strong {
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+/*
+ * The password recommendation. Warn-tinted, not danger-tinted: nothing is broken, and a red box
+ * on a welcome screen reads as "you have already done something wrong".
+ */
+.recommend {
+  margin-top: 28px;
+  border: 1px solid color-mix(in oklab, var(--warn) 45%, var(--border));
+  background: color-mix(in oklab, var(--warn) 8%, var(--surface));
+  border-radius: var(--radius);
+  padding: 16px 18px;
+}
+
+.recommend h2 {
+  font-size: 17px;
+  letter-spacing: 0;
+}
+
+.recommendBody {
+  font-size: 15px;
+  line-height: 160%;
+  margin-bottom: 14px;
+}
+
+.footnote {
+  margin-top: 24px;
+  font-size: 14px;
+  color: var(--text);
+}

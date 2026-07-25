@@ -8,7 +8,10 @@
  * marker and the import poller real work rather than props waiting for M4.
  *
  * Scenario switch: append `?scenario=empty` to the page URL to serve the empty household, which
- * is how the empty states get exercised without a second build.
+ * is how the empty states get exercised without a second build. `?scenario=new` goes one further
+ * and serves a household Penny has *just* provisioned from a WhatsApp group — placeholder name,
+ * nothing in it — which is the only way to see the first-run setup without a real webhook
+ * delivery.
  */
 
 import type {
@@ -24,6 +27,8 @@ import type {
   WhatsappRelink,
   WhatsappStatus,
 } from '../types/api'
+
+import { PLACEHOLDER_CARE_RECIPIENT } from '../lib/first-run'
 
 import type { Loosen } from './contract'
 
@@ -47,6 +52,9 @@ const ALL_REPORTS = CHECKED_REPORTS as unknown as Report[]
 
 const SCENARIO = new URLSearchParams(globalThis.location?.search ?? '').get('scenario')
 
+/** Both empty households hold nothing; only `new` has never been set up. */
+const BLANK = SCENARIO === 'empty' || SCENARIO === 'new'
+
 const DEMO_USERNAME = 'the-doyles'
 let demoPassword = 'correct-horse-battery-staple'
 
@@ -54,9 +62,14 @@ let demoPassword = 'correct-horse-battery-staple'
 const LATENCY_MS = 140
 
 // Mutable so edits and deletes survive a navigation the way the real backend would.
-let events: Event[] = structuredClone(SCENARIO === 'empty' ? (emptyFeed.events as Event[]) : ALL_EVENTS)
-let household: Household = { ...me.household }
-let people: Member[] = structuredClone(SCENARIO === 'empty' ? [] : (members as Member[]))
+let events: Event[] = structuredClone(BLANK ? (emptyFeed.events as Event[]) : ALL_EVENTS)
+// `care_recipient_name` is NOT NULL, so a freshly provisioned household holds the placeholder —
+// and that placeholder is exactly what the first-run setup keys off.
+let household: Household =
+  SCENARIO === 'new'
+    ? { ...me.household, name: 'Your family', care_recipient_name: PLACEHOLDER_CARE_RECIPIENT }
+    : { ...me.household }
+let people: Member[] = structuredClone(BLANK ? [] : (members as Member[]))
 let signedIn = true
 let importStartedAt: number | null = null
 
@@ -218,7 +231,7 @@ async function respond(method: string, path: string, query: URLSearchParams, ini
   if (method === 'GET' && head === 'me') {
     const session: Session = {
       household,
-      counts: { events: events.length, messages: SCENARIO === 'empty' ? 0 : me.counts.messages },
+      counts: { events: events.length, messages: BLANK ? 0 : me.counts.messages },
     }
     return json(session)
   }

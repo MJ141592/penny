@@ -3,12 +3,24 @@
 Every adapter — the GOWA webhook, the `.txt` importer, manual entry — comes through here, and
 none of them supplies a `household_id`. They hand over a `group_external_id` and the seam
 resolves it. That is the tenant boundary for inbound data: a webhook body can name any chat it
-likes and still cannot address a household that has not linked that chat.
+likes and still cannot address a household that has not linked that chat. (Since group
+onboarding, a webhook CAN cause a household to come into existence for the chat it names — but
+only for that chat, and only via `app.onboarding`, which posts the credential into the group.
+Naming an existing household is still impossible, and that is the property this file owns.)
 
 THE ORDER MATTERS:
 
     a. group -> household        `whatsapp_links`. A miss raises `UnknownGroupError`.
-                                 It NEVER auto-provisions a household.
+                                 THE SEAM ITSELF STILL NEVER PROVISIONS — it raises, and the
+                                 caller decides. What changed is one caller's answer: the GOWA
+                                 webhook now catches `UnknownGroupError` and provisions a
+                                 household for the group, then re-ingests through here. That is
+                                 not the tenant leak the old absolute rule guarded against,
+                                 because the credential is posted back INTO that group and
+                                 nowhere else — only its members can read it, so possession of
+                                 the group is the proof of ownership. See `app.onboarding`.
+                                 The boundary below is untouched either way: an adapter still
+                                 cannot NAME a household, only a group.
     b. senders -> members        BEFORE hashing, so the hash can key on a resolved member.
     c. content_hash              sha256 over household, MINUTE-bucketed UTC timestamp,
                                  sender key, normalised text, and an occurrence counter.

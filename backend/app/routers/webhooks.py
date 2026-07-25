@@ -17,7 +17,13 @@
    `BackgroundTasks`, which runs after the response is written; doing it inline would blow the
    10-second budget on the first busy chunk and turn one message into five deliveries.
 
-3. **Idempotency is not implemented here.** It lives in the partial unique index on
+3. **An unknown group is onboarded, not rejected.** Penny added to a group provisions a
+   household for it and posts the credentials back into the group. See the long comment on the
+   `UnknownGroupError` path for why that is not the tenant leak the previous rule guarded
+   against, and `_onboard_group` for the ordering it forces: household committed first, welcome
+   message second, never the other way round.
+
+4. **Idempotency is not implemented here.** It lives in the partial unique index on
    `(household_id, provider_message_id)` and is enforced by `ingest_messages`. This handler's
    only job is to pass `payload.id` through faithfully, because a replay is the *expected* case
    whenever we are slow, not an anomaly.
@@ -42,15 +48,23 @@ from uuid import UUID
 import sqlalchemy as sa
 from fastapi import APIRouter, BackgroundTasks, Request
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import gowa
 from app.config import get_settings
 from app.db import get_sessionmaker
 from app.deps import SessionDep
 from app.errors import UnauthorizedError
 from app.extraction.service import run_extraction_for_household
-from app.ingest.contract import GROUP_JID_SUFFIX, InboundMessage, UnknownGroupError
+from app.ingest.contract import (
+    GROUP_JID_SUFFIX,
+    InboundMessage,
+    IngestResult,
+    UnknownGroupError,
+)
 from app.ingest.seam import ingest_messages
-from app.models import Message
+from app.models import Household, Message
+from app.onboarding import provision_for_group, welcome_message
 
 log = logging.getLogger(__name__)
 
@@ -275,11 +289,22 @@ async def gowa_webhook(
     try:
         result = await ingest_messages(session, payload.chat_id, [inbound])
     except UnknownGroupError:
-        # 200, always. Nothing about retrying an unlinked group can make it linked, and an
-        # unknown group NEVER auto-provisions a household — that is the tenant-leak vector.
-        record_unlinked_group(payload.chat_id)
-        log.warning("webhook.unknown_group", extra={"chat_id": payload.chat_id})
-        return _ignored("unknown_group")
+        # 200, always. Nothing about retrying an unlinked group can make it linked.
+        #
+        # THIS IS WHERE AUTO-PROVISIONING USED TO BE FORBIDDEN, and the reversal is deliberate.
+        # The old rule read "an unknown group NEVER auto-provisions a household — that is the
+        # tenant-leak vector", and against a webhook that simply created a household it was
+        # right. What makes it safe now is WHERE THE CREDENTIAL GOES: the passphrase is revealed
+        # in exactly one place, a WhatsApp message posted back INTO that group. Only members of
+        # the group can read it, so holding the credential is proof of membership — which is
+        # also the answer the security review wanted to "what stops the wrong tenant claiming a
+        # group?". Someone who forges a webhook naming a stranger's chat_id causes a household
+        # to be created whose password is delivered to the stranger's group and never to them.
+        # The original boundary is untouched: a webhook body still cannot NAME a household. It
+        # can only cause one to exist for the group the message actually came from.
+        result = await _onboard_group(session, background, payload.chat_id, inbound)
+        if result is None:
+            return _ignored("unknown_group")
 
     log.info(
         "webhook.ingested",
@@ -299,6 +324,148 @@ async def gowa_webhook(
     if result.inserted:
         background.add_task(spawn_extraction, result.household_id, payload.id)
     return {"status": "ok", "inserted": result.inserted}
+
+
+async def _onboard_group(
+    session: AsyncSession,
+    background: BackgroundTasks,
+    chat_id: str,
+    inbound: InboundMessage,
+) -> IngestResult | None:
+    """Provision a household for a group nobody has linked, then ingest the message anyway.
+
+    Returns None ONLY for "stay silent and answer 200 with no rows": onboarding is switched off,
+    or the cap is reached. That is the pre-onboarding behaviour, unchanged.
+
+    The message that introduced Penny to the group is RE-INGESTED rather than dropped. It is
+    usually the one that says why the group added her ("adding Penny so we can all keep track of
+    Mum's appointments"), and dropping it would make the first thing Penny ever sees the second
+    thing the family ever said.
+
+    PROVISIONING AND SENDING ARE TWO DECISIONS, NOT ONE. `created=False` means a concurrent
+    delivery provisioned this group microseconds ago and committed while we waited on the
+    advisory lock. It is the reason not to send a SECOND password into the family's chat — and
+    it is NOT a reason to drop this message, because the household it belongs to now exists and
+    the link is committed and visible. Treating one flag as the answer to both questions loses
+    real messages: three people typing the moment Penny joins produced one stored row and two
+    200s that discarded the text — permanently, because a 200 is exactly what stops GOWA
+    retrying. Measured, not theorised: 3 concurrent deliveries, 1 message kept.
+    """
+    provisioned = await provision_for_group(session, chat_id)
+    if provisioned is None:
+        # Exactly today's behaviour: 200, no rows, no message.
+        record_unlinked_group(chat_id)
+        log.warning("webhook.unknown_group", extra={"chat_id": chat_id, "onboarded": False})
+        return None
+
+    # FLUSH before re-ingesting. The sessionmaker sets autoflush=False, so the household and
+    # its whatsapp_links row are still pending Python objects; the seam resolves the group with
+    # a SELECT, and an unflushed INSERT is invisible to it. Without this the re-ingest would
+    # raise UnknownGroupError a second time and the message really would be dropped. (On the
+    # `created=False` path there is nothing pending and the flush is a no-op; the row it needs
+    # was committed by the delivery that won.)
+    #
+    # If the re-ingest raises anyway, it is deliberately NOT swallowed. That is the one shape of
+    # failure a retry genuinely fixes: the whole transaction rolls back, the household goes with
+    # it, nothing was sent, and GOWA's next delivery starts clean. Answering 200 here instead
+    # would leave a family with a household and no credentials and no message.
+    await session.flush()
+    result = await ingest_messages(session, chat_id, [inbound])
+
+    if not provisioned.created:
+        # Someone else's request is sending the welcome. Ours only had a message to save.
+        log.info(
+            "webhook.joined_existing_onboarding",
+            extra={
+                "chat_id": chat_id,
+                "household_id": str(provisioned.household_id),
+                "inserted": result.inserted,
+            },
+        )
+        return result
+
+    # THE ORDERING TRAP: THE HOUSEHOLD MUST BE COMMITTED BEFORE THE PASSWORD GOES OUT. Sending
+    # from inside the request would hand a family a credential for a household that a later
+    # rollback means never existed — and the failure is silent on our side and permanent on
+    # theirs, because the message cannot be unsent. So the ordering is not left to whether
+    # Starlette runs background tasks before or after `get_session`'s teardown (the two have
+    # traded places between versions — see `extract_in_background`, and on FastAPI 0.140 /
+    # Starlette 1.3.1 the commit is observably first). This task only SPAWNS, and `send_welcome`
+    # waits for the household row to be readable on a fresh connection before it says a word.
+    # Committed first, credential second, under either ordering.
+    #
+    # It is a background task at all, rather than an await here, because a send is a network
+    # call to a sidecar that can hang. Ten seconds of hanging GOWA inside the handler is a GOWA
+    # retry, and a retry is a second delivery of a message we have already stored.
+    background.add_task(
+        spawn_welcome,
+        provisioned.household_id,
+        chat_id,
+        provisioned.username,
+        provisioned.passphrase,
+    )
+    log.info(
+        "webhook.onboarded",
+        extra={
+            "chat_id": chat_id,
+            "household_id": str(provisioned.household_id),
+            "inserted": result.inserted,
+        },
+    )
+    return result
+
+
+async def spawn_welcome(household_id: UUID, chat_id: str, username: str, passphrase: str) -> None:
+    """DETACH the send, for the same reason `spawn_extraction` detaches — see below.
+
+    Returns immediately so the request can get on with committing the household this send
+    depends on. Awaiting `send_welcome` here would be a deadlock on any Starlette that tears a
+    `yield` dependency down after its background tasks: the send waits for a commit that is
+    waiting for the send.
+    """
+    task = asyncio.create_task(send_welcome(household_id, chat_id, username, passphrase))
+    _RUNNING.add(task)
+    task.add_done_callback(_RUNNING.discard)
+
+
+async def send_welcome(household_id: UUID, chat_id: str, username: str, passphrase: str) -> None:
+    """Post the credentials into the group, once the household is durably there.
+
+    NOTHING ESCAPES, and nothing here is worth failing a webhook over. If GOWA is down, banned,
+    or has no paired device, the household still exists and the family can be given the
+    credentials another way — a failed welcome is a support conversation, a raised exception is
+    a non-2xx that costs us five more deliveries of a message already stored.
+
+    The passphrase is in the argument list and in the message body and NOWHERE ELSE. It is never
+    logged, and `gowa.send_message` logs a character count rather than the text it sent.
+    """
+    try:
+        if not await _await_household(household_id):
+            log.error(
+                "webhook.welcome_household_never_committed",
+                extra={"household_id": str(household_id), "chat_id": chat_id},
+            )
+            return
+        message = welcome_message(username, passphrase, get_settings().app_public_url)
+        result = await gowa.send_message(chat_id, message)
+        if result.ok:
+            log.info(
+                "webhook.welcome_sent",
+                extra={"household_id": str(household_id), "chat_id": chat_id},
+            )
+        else:
+            # The household id, so an operator can find the family and hand over the
+            # credentials by another route. The credentials themselves stay out of the log.
+            log.error(
+                "webhook.welcome_send_failed",
+                extra={
+                    "household_id": str(household_id),
+                    "chat_id": chat_id,
+                    "error": result.error,
+                },
+            )
+    except Exception:
+        log.exception("webhook.welcome_failed", extra={"household_id": str(household_id)})
 
 
 async def spawn_extraction(household_id: UUID, provider_message_id: str) -> None:
@@ -361,22 +528,34 @@ async def extract_in_background(household_id: UUID, provider_message_id: str) ->
 
 
 async def _await_commit(household_id: UUID, provider_message_id: str) -> bool:
-    """Block until the ingested message is visible from a fresh connection.
+    """Block until the ingested message is visible from a fresh connection."""
+    return await _await_visible(
+        sa.select(Message.id).where(
+            Message.household_id == household_id,
+            Message.provider_message_id == provider_message_id,
+        )
+    )
+
+
+async def _await_household(household_id: UUID) -> bool:
+    """Block until the provisioned household is visible from a fresh connection.
+
+    This is the ordering guarantee behind the welcome message: the family never learns a
+    password before the household it opens is durable.
+    """
+    return await _await_visible(sa.select(Household.id).where(Household.id == household_id))
+
+
+async def _await_visible(statement: sa.Select[Any]) -> bool:
+    """True once the row the request is writing has been committed by it.
 
     Milliseconds in practice; the ceiling only matters when the request failed and will never
-    commit at all, in which case we give up rather than run an extraction for nothing.
+    commit at all, in which case we give up rather than act on a write that never happened.
     """
     maker = get_sessionmaker()
     for _ in range(COMMIT_WAIT_TRIES):
         async with maker() as session:
-            found = (
-                await session.execute(
-                    sa.select(Message.id).where(
-                        Message.household_id == household_id,
-                        Message.provider_message_id == provider_message_id,
-                    )
-                )
-            ).first()
+            found = (await session.execute(statement)).first()
         if found is not None:
             return True
         await asyncio.sleep(COMMIT_WAIT_SECONDS)

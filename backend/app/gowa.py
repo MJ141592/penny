@@ -15,6 +15,15 @@ which is silently wrong if you guess:
 
 * `/send/message` takes the field **`phone`** even for a group, and it wants the full
   `...@g.us` JID. There is no separate group endpoint.
+  **UNVERIFIED on v9: whether `/send/*` also demands a `device_id`.** Every `/app/*` route on
+  the deployed v9.0.0 image turned out to answer `400 {"code":"DEVICE_ID_REQUIRED"}` without
+  one (2026-07-25), and `/send/*` was never re-tested after that discovery — GOWA has no public
+  domain, so it cannot be probed from a developer machine. Guessing either way is a silent
+  failure: send it unasked and a v9 that validates its body may reject an unknown field; omit
+  it and every send may 400. So `send_message` does neither. It sends the documented body,
+  and **only if GOWA answers `DEVICE_ID_REQUIRED`** does it resolve a device via `/devices` and
+  retry with both the query parameter and the `X-Device-Id` header. That costs nothing when the
+  guess-free path already works and self-heals when it does not.
 * `/app/login` **blocks for up to 120 seconds** waiting for whatsmeow to produce the first QR.
   It gets its own timeout, and it must never be on a path anything polls.
 * `qr_link` is a **PNG URL**, not a raw QR payload. Handing it to a QR renderer produces a QR
@@ -28,6 +37,7 @@ splitting on the first one here is exact, not a heuristic.
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -48,6 +58,16 @@ LOGIN_TIMEOUT = httpx.Timeout(130.0, connect=5.0)
 
 UNCONFIGURED = "gowa_not_configured"
 UNREACHABLE = "gowa_unreachable"
+# GOWA's own error code for "you did not tell me which device", promoted to a first-class
+# reason because it is the one 400 a caller can actually recover from.
+DEVICE_ID_REQUIRED = "gowa_device_id_required"
+NO_DEVICE = "gowa_no_device_id"
+DEVICE_ID_HEADER = "X-Device-Id"
+
+# GOWA's `code` is a SCREAMING_SNAKE enum. Anything else in that field is treated as absent
+# rather than passed on: the sibling `message` field can echo the text we just sent, and a
+# reason string ends up in logs.
+_ERROR_CODE = re.compile(r"^[A-Z][A-Z0-9_]{0,39}$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,6 +133,16 @@ def _unwrap(body: Any) -> dict[str, Any]:
     return results if isinstance(results, dict) else body
 
 
+def _error_code(response: httpx.Response) -> str | None:
+    """GOWA's machine-readable `code`, or None. NEVER the sibling `message` — see `_ERROR_CODE`."""
+    try:
+        body = response.json()
+    except Exception:
+        return None
+    code = body.get("code") if isinstance(body, dict) else None
+    return code if isinstance(code, str) and _ERROR_CODE.match(code) else None
+
+
 async def _call(
     method: str,
     path: str,
@@ -120,6 +150,7 @@ async def _call(
     http_timeout: httpx.Timeout,
     json: dict[str, Any] | None = None,
     params: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
 ) -> tuple[dict[str, Any] | None, str | None]:
     """One request. Returns `(results, None)` or `(None, reason)` — never raises.
 
@@ -132,12 +163,19 @@ async def _call(
         return None, UNCONFIGURED
     try:
         async with httpx.AsyncClient(base_url=base, auth=_auth(), timeout=http_timeout) as client:
-            response = await client.request(method, path, json=json, params=params)
+            response = await client.request(method, path, json=json, params=params, headers=headers)
             response.raise_for_status()
             return _unwrap(response.json()), None
     except httpx.HTTPStatusError as exc:
-        # Log the status, never the body: a GOWA error body can echo the message we just sent.
-        log.warning("gowa.http_error", extra={"path": path, "status": exc.response.status_code})
+        # Log the status and the enum code, never the body: a GOWA error body can echo the
+        # message we just sent.
+        code = _error_code(exc.response)
+        log.warning(
+            "gowa.http_error",
+            extra={"path": path, "status": exc.response.status_code, "code": code},
+        )
+        if code == "DEVICE_ID_REQUIRED":
+            return None, DEVICE_ID_REQUIRED
         return None, f"gowa_http_{exc.response.status_code}"
     except Exception as exc:
         log.warning("gowa.unreachable", extra={"path": path, "exc_type": type(exc).__name__})
@@ -160,6 +198,17 @@ async def list_devices() -> tuple[list[dict[str, Any]] | None, str | None]:
     return ([d for d in devices if isinstance(d, dict)] if isinstance(devices, list) else []), None
 
 
+def _device_id(device: dict[str, Any]) -> str | None:
+    """`/devices` calls it `id`; `/app/status` calls the same value `device_id`. Accept both."""
+    return _as_str(device.get("device_id")) or _as_str(device.get("id"))
+
+
+async def _first_device_id() -> str | None:
+    """The paired device, or None if the sidecar is down or nothing is paired yet."""
+    devices, _ = await list_devices()
+    return _device_id(devices[0]) if devices else None
+
+
 async def get_status() -> GowaStatus:
     """Link health. Called by `/api/whatsapp/status`, which the settings screen polls at 30s.
 
@@ -176,7 +225,7 @@ async def get_status() -> GowaStatus:
         # The sidecar answered — it is healthy, there is simply no session to report on.
         return GowaStatus(available=True, is_connected=False, is_logged_in=False)
 
-    device_id = _as_str(devices[0].get("device_id")) or _as_str(devices[0].get("id"))
+    device_id = _device_id(devices[0])
     results, error = await _call(
         "GET", "/app/status", params={"device_id": device_id}, http_timeout=STATUS_TIMEOUT
     )
@@ -209,7 +258,7 @@ async def start_login() -> GowaLogin:
     if devices:
         # Re-pair reuses the existing device, so the household keeps one identity across
         # sessions rather than accumulating a dead placeholder per QR scan.
-        device_id = _as_str(devices[0].get("device_id")) or _as_str(devices[0].get("id"))
+        device_id = _device_id(devices[0])
     else:
         created, error = await _call(
             "POST", "/devices", json={"name": "penny"}, http_timeout=STATUS_TIMEOUT
@@ -236,13 +285,34 @@ async def start_login() -> GowaLogin:
 
 
 async def send_message(chat_id: str, text: str) -> GowaSendResult:
-    """Send to a group. The field is `phone` EVEN FOR A GROUP JID — pass the full `...@g.us`."""
-    results, error = await _call(
-        "POST",
-        "/send/message",
-        http_timeout=SEND_TIMEOUT,
-        json={"phone": chat_id, "message": text},
-    )
+    """Send to a group. The field is `phone` EVEN FOR A GROUP JID — pass the full `...@g.us`.
+
+    The `DEVICE_ID_REQUIRED` retry is the module docstring's unverified case made harmless: we
+    never guess whether v9's `/send/*` wants a device id, we let GOWA say so and then answer.
+    One extra round trip on a path that would otherwise have failed outright.
+    """
+    body = {"phone": chat_id, "message": text}
+    results, error = await _call("POST", "/send/message", http_timeout=SEND_TIMEOUT, json=body)
+
+    if error == DEVICE_ID_REQUIRED:
+        device_id = await _first_device_id()
+        if not device_id:
+            # Nothing is paired (or the sidecar just went away). Either way there is no device
+            # to send from, and the caller's job is to degrade, not to retry.
+            log.warning("gowa.send_no_device", extra={"chat_id": chat_id})
+            return GowaSendResult(ok=False, error=NO_DEVICE)
+        log.info("gowa.send_retry_with_device", extra={"chat_id": chat_id})
+        # Query parameter AND header: v9 documents both spellings and which one `/send/*`
+        # honours is exactly the thing that could not be verified from here.
+        results, error = await _call(
+            "POST",
+            "/send/message",
+            http_timeout=SEND_TIMEOUT,
+            json=body,
+            params={"device_id": device_id},
+            headers={DEVICE_ID_HEADER: device_id},
+        )
+
     if results is None:
         return GowaSendResult(ok=False, error=error)
     # chat_id is an identifier, not content; the text we sent is never logged.

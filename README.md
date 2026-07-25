@@ -49,6 +49,9 @@ cp .env.example .env   # then fill in your real keys
 | `LLM_MONTHLY_BUDGET_USD_PER_HOUSEHOLD` | no | `15` | Per-household monthly spend guard |
 | `DEFAULT_TIMEZONE` | no | `Europe/London` | Default household timezone |
 | `SERVE_FRONTEND` | no | `true` | Mount `frontend/dist` from the API process (how production serves the SPA) |
+| `ONBOARDING_ENABLED` | no | `true` | Adding Penny to a WhatsApp group provisions that group's household and posts the credentials into the group. `false` restores the old silent 200 — the kill switch if the number gets out |
+| `ONBOARDING_MAX_HOUSEHOLDS` | no | `25` | Ceiling on onboarding. The exposure is the OpenAI bill, not data: every household runs extraction |
+| `APP_PUBLIC_URL` | no | `https://pennyai.chat` | The URL in the welcome message. Wrong value = a dead link in the first thing a family ever sees |
 
 Test-only, read by the suite rather than by `Settings`: `RUN_LIVE_OPENAI_TESTS=1` opts in to the
 `live` tests.

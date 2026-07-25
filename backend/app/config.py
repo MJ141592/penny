@@ -56,6 +56,23 @@ class Settings(BaseSettings):
     default_timezone: str = "Europe/London"
     serve_frontend: bool = True
 
+    # --- Group onboarding -----------------------------------------------------------------
+    # Where a family is sent after Penny is added to their group. It goes into the welcome
+    # message, so a wrong value here is a dead link in the first thing the product ever says.
+    app_public_url: str = "https://pennyai.chat"
+    # The kill switch. False makes an unknown group a silent 200 again, which is the pre-
+    # onboarding behaviour and the thing to reach for if the WhatsApp number gets out.
+    onboarding_enabled: bool = True
+    # The blast radius of open onboarding is the OpenAI bill, not data: anyone who learns the
+    # number can mint households, and every household runs extraction. This cap is what stops
+    # that starving real families of their budget.
+    onboarding_max_households: int = 25
+    # households.care_recipient_name is NOT NULL and at provision time nobody has told us who
+    # is being cared for. "Still the placeholder" is the signal that first-run setup is needed,
+    # so this string is compared against, not just displayed — change it and every existing
+    # household looks configured.
+    onboarding_placeholder_care_recipient: str = "your family member"
+
     @field_validator("database_url")
     @classmethod
     def _require_asyncpg_driver(cls, value: str | None) -> str | None:

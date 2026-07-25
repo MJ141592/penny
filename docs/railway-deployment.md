@@ -225,6 +225,12 @@ GOWA_URL=http://gowa.railway.internal:3000
 GOWA_BASIC_AUTH=penny:<same-password-as-APP_BASIC_AUTH>
 WHATSAPP_WEBHOOK_SECRET=<same-random-32-bytes-as-gowa>
 INTERNAL_TICK_SECRET=<random-32-bytes>     # M5, when the cron caller exists
+
+# Group onboarding. All three have working defaults; set them anyway, because
+# the defaults mean "on" and the blast radius is a password in a stranger's chat.
+APP_PUBLIC_URL=https://pennyai.chat
+ONBOARDING_ENABLED=true
+ONBOARDING_MAX_HOUSEHOLDS=25
 ```
 
 - `ENV=production` is what turns off the dev-only CORS middleware. Same-origin serving means the app
@@ -330,6 +336,60 @@ body, not a re-serialized object, and verify **before** parsing. 5 retries with 
 - No top-level `timestamp` on `message` events (other event types do have one).
 - `image` is polymorphic: `str` when there's no caption, `dict` when there is.
 - Idempotency is on `payload.id`, backed by the `(household_id, provider_message_id)` unique index.
+
+## Group onboarding: adding Penny to a group creates the household
+
+An `@g.us` chat_id that belongs to no household is **provisioned**, not ignored. The first message
+from an unknown group creates a household with a generated username and passphrase, links the
+group, ingests that message, and posts the credentials back into the group via `/send/message`.
+
+This reverses the rule that used to be stated here and in the code ("an unknown group NEVER
+auto-provisions — that is the tenant-leak vector"). What makes it safe is **where the credential
+goes**: into that group and nowhere else, so only its members can read it. Possession of the group
+is the proof of ownership, which is also the answer to "what stops the wrong tenant claiming a
+group?". A webhook body still cannot NAME a household — it can only cause one to exist for the
+chat the message actually came from, and the HMAC is what makes that chat id trustworthy at all.
+
+Operationally:
+
+| | |
+|---|---|
+| `ONBOARDING_ENABLED=false` | **The kill switch.** Unknown groups go back to a silent 200 with nothing written. Existing households are untouched. Reach for this first if the WhatsApp number gets out. |
+| `ONBOARDING_MAX_HOUSEHOLDS` | The ceiling while it is on. The exposure is the **OpenAI bill**, not data — every household runs extraction. Lower it; do not remove it. |
+| `APP_PUBLIC_URL` | Goes into the welcome message. Wrong value = a dead link in the first thing a family ever sees. |
+
+Two consequences worth knowing before you turn this on:
+
+- **`POST /api/whatsapp/link` becomes unreachable for a new group while onboarding is on.** The
+  first message from that group provisions its own household, so an existing household can no
+  longer claim it — `/link` answers 409. A family with an account who adds Penny to a second group
+  gets a second, separate household.
+- **Onboarding fires on the first *message*, not on the join event.** Whether GOWA v9 delivers a
+  webhook when Penny is added to a group is unverified; if it does not, nothing happens until
+  somebody speaks in the group.
+
+### When the welcome message fails to send
+
+**A failed welcome is unrecoverable by retry and needs a human.** Only the argon2 hash is stored,
+so the plaintext passphrase exists nowhere after the send attempt; and the next delivery from that
+group finds `created=False`, which correctly refuses to post a second password — so the family is
+left with a household they cannot sign into and no message. It is deliberately loud:
+
+```
+{"event":"webhook.welcome_send_failed","household_id":"...","chat_id":"...","error":"..."}
+{"event":"webhook.welcome_household_never_committed","household_id":"...","chat_id":"..."}
+```
+
+Recovery, given the `household_id` from that line (the username is deliberately *not* logged next
+to anything credential-shaped, so look it up):
+
+```sh
+railway run --service penny psql $DATABASE_URL -c "select username from households where id = '<household_id>'"
+railway run --service penny python -m app.seed --username <username> --reset-password
+```
+
+Then give the family the new passphrase by whatever channel you can reach them on. Alert on
+`webhook.welcome_send_failed`; nothing else in the product notices.
 
 ## Sending to a group
 
