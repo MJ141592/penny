@@ -12,18 +12,18 @@ const NAV = [
 ]
 
 /**
- * While the household still has no care recipient, `/` bounces to `/welcome` — so a "History"
+ * While the household still has no care recipient, `/` bounces to `/setup` — so a "History"
  * link would look broken, clicking it and landing back on the same screen. Name the destination
  * it actually has instead.
  */
-const SETUP_NAV = [{ to: '/welcome', label: 'Set up', end: true }, ...NAV.slice(1)]
+const SETUP_NAV = [{ to: '/setup', label: 'Set up', end: true }, ...NAV.slice(1)]
 
 /**
  * The shell every screen renders inside, and the one place the session gate lives.
  *
- * A 401 from `GET /api/me` means signed out, and this redirects to /login. Doing it here rather
- * than per route means a new route cannot forget to be protected, and it is why the retry policy
- * matters: retrying the 401 would stall on a spinner before the redirect ever happened.
+ * A 401 from `GET /api/me` means signed out, and this redirects to the public landing page.
+ * Existing families can reach /login from its Sign in link. Doing it here rather than per route
+ * means a new route cannot forget to be protected.
  */
 export function Layout() {
   const session = useSession()
@@ -47,6 +47,7 @@ export function Layout() {
         <div className={styles.headerInner}>
           <NavLink to="/" className={styles.brand}>
             Penny
+            <span className={styles.brandTag}>Care Record</span>
             {session.data ? (
               <span className={styles.brandSub}>{session.data.household.name}</span>
             ) : null}
@@ -105,7 +106,7 @@ function Gate({
   atRoot: boolean
 }) {
   if (isPending) return <p className={styles.hint}>Loading…</p>
-  if (signedOut && !onLoginScreen) return <Navigate to="/login" replace />
+  if (signedOut && !onLoginScreen) return <Navigate to="/welcome" replace />
   if (!signedOut && onLoginScreen) return <Navigate to="/" replace />
   /*
    * A family that has just followed the link out of their WhatsApp group would otherwise land on
@@ -113,6 +114,6 @@ function Gate({
    * root, so this is a starting point and not a wall: the nav stays up and Settings, Import and
    * the feed itself are all still reachable by anyone who would rather look around first.
    */
-  if (needsSetup && atRoot) return <Navigate to="/welcome" replace />
+  if (needsSetup && atRoot) return <Navigate to="/setup" replace />
   return <Outlet />
 }

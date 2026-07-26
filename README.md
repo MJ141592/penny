@@ -96,6 +96,10 @@ npm run dev
 The dev server runs at http://localhost:5173 and proxies `/api` to the backend, matching the
 same-origin arrangement in production. Checks:
 
+The landing page defaults to Penny's production WhatsApp number. For another environment, copy
+`frontend/.env.example` to `frontend/.env` and set `VITE_PENNY_WHATSAPP_NUMBER` to digits in E.164
+order.
+
 ```sh
 npm run build       # tsc -b && vite build
 npm run lint        # oxlint

@@ -13,7 +13,7 @@ infuriating bug this app could have and the hardest to diagnose from a bug repor
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Response, status
 from pydantic import ValidationError as PydanticValidationError
@@ -23,9 +23,50 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.deps import CurrentHousehold, SessionDep
 from app.errors import NotFoundError, ValidationError
 from app.models import Event, Member
-from app.schemas import DETAILS_MODEL, AnyEvent, EventPatch, to_event
+from app.schemas import DETAILS_MODEL, AnyEvent, EventCreate, EventPatch, to_event
 
 router = APIRouter(prefix="/api", tags=["events"])
+
+
+@router.post("/events", response_model=AnyEvent, status_code=status.HTTP_201_CREATED)
+async def create_event(
+    create: EventCreate,
+    ctx: CurrentHousehold,
+    session: SessionDep,
+) -> AnyEvent:
+    """Create a manual entry that extraction can never merge into or overwrite."""
+    title = create.title.strip()
+    if not title:
+        raise ValidationError("A title is required.")
+    model = DETAILS_MODEL[create.kind]
+    try:
+        details = model.model_validate(create.details).model_dump(mode="json")
+    except PydanticValidationError as exc:
+        raise ValidationError(_detail_message(exc)) from exc
+
+    event_id = uuid4()
+    occurred_at = create.occurred_at
+    if occurred_at.tzinfo is None:
+        occurred_at = occurred_at.replace(tzinfo=UTC)
+    event = Event(
+        id=event_id,
+        household_id=ctx.id,
+        kind=create.kind,
+        occurred_at=occurred_at,
+        occurred_at_precision=create.occurred_at_precision,
+        title=title,
+        body=create.body.strip() if create.body else None,
+        details=details,
+        source_message_ids=[],
+        source_excerpts=[],
+        occurrences=[],
+        user_edited_fields=[],
+        dedup_key=f"human:{event_id}",
+        pinned=True,
+    )
+    session.add(event)
+    await session.flush()
+    return to_event(event)
 
 
 async def _load(

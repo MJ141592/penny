@@ -10,7 +10,8 @@
 :root {
   --text: #6b6375;
   --text-h: #08060d;
-  --bg: #fff;
+  /* Warm page ground from the care-record design; content surfaces remain white. */
+  --bg: #faf9f5;
   --border: #e5e4e7;
   --code-bg: #f4f3ec;
   --accent: #aa3bff;
@@ -36,11 +37,15 @@
 
   --radius: 10px;
   --gap: 16px;
-  --shell-width: 880px;
+  --shell-width: 1180px;
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --serif: 'Newsreader', Georgia, serif;
   --mono: ui-monospace, Consolas, monospace;
+
+  --navy: #17456e;
+  --navy-contrast: #fff;
 
   font: 17px/150% var(--sans);
   letter-spacing: 0.18px;
@@ -82,6 +87,9 @@
     --kind-appointment: #93c5fd;
     --kind-medication: #c4b5fd;
     --kind-note: #9ca3af;
+
+    --navy: #8fb8dd;
+    --navy-contrast: #10131a;
   }
 }
 

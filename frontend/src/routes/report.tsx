@@ -43,6 +43,10 @@ export function ReportRoute() {
 
       {data.urgent_flag ? <p className={styles.error}>{data.urgent_reason}</p> : null}
       {data.summary ? <p className={styles.body}>{data.summary}</p> : null}
+      <p className={styles.hint} style={{ margin: '12px 0 24px' }}>
+        Generated from this family’s recorded timeline. It does not diagnose or replace advice
+        from a clinician.
+      </p>
 
       {data.sections.map((section) => (
         <section key={section.heading} className={styles.card}>

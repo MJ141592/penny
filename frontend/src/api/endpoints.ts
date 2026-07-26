@@ -6,6 +6,7 @@
 
 import type {
   Event,
+  EventCreate,
   FeedPage,
   Household,
   ImportAccepted,
@@ -93,6 +94,10 @@ export function getUpcoming(signal?: AbortSignal): Promise<UpcomingPage> {
   return api('/upcoming', { signal })
 }
 
+export function createEvent(create: EventCreate): Promise<Event> {
+  return api('/events', { method: 'POST', json: create })
+}
+
 /** `details` is merged server-side, so send only the keys being changed. */
 export interface EventPatch {
   title?: string
@@ -116,6 +121,10 @@ export function getReports(signal?: AbortSignal): Promise<ReportSummary[]> {
 
 export function getReport(id: string, signal?: AbortSignal): Promise<Report> {
   return api(`/reports/${id}`, { signal })
+}
+
+export function createReport(periodDays = 30): Promise<Report> {
+  return api('/reports', { method: 'POST', json: { period_days: periodDays } })
 }
 
 export function getMembers(signal?: AbortSignal): Promise<Member[]> {
