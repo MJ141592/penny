@@ -8,6 +8,9 @@ interface ImportMetaEnv {
    * ship a build that quietly shows invented data.
    */
   readonly VITE_USE_FIXTURES?: string
+
+  /** Penny's WhatsApp number, digits only in E.164 order. */
+  readonly VITE_PENNY_WHATSAPP_NUMBER?: string
 }
 
 interface ImportMeta {

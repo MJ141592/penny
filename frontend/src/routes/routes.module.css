@@ -29,16 +29,31 @@
 }
 
 .brand {
+  font-family: var(--serif);
+  font-size: 22px;
   font-weight: 600;
   color: var(--text-h);
   text-decoration: none;
   letter-spacing: -0.3px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.brandTag {
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.6px;
+  color: var(--text);
 }
 
 .brandSub {
+  font-family: var(--sans);
+  font-size: 15px;
   color: var(--text);
   font-weight: 400;
-  margin-left: 8px;
 }
 
 .nav {
@@ -76,6 +91,69 @@
 
 .pageHeader {
   margin-bottom: 20px;
+}
+
+/* Care-record home layout. */
+.columns {
+  display: flex;
+  gap: 36px;
+  align-items: flex-start;
+}
+
+.feedColumn {
+  min-width: 0;
+  flex: 1;
+}
+
+.timelineHead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.timelineTitle {
+  font-family: var(--serif);
+  font-size: 30px;
+  font-weight: 500;
+  margin: 0 0 4px;
+}
+
+.summaryLink {
+  border: 0;
+  background: none;
+  padding: 0 0 5px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--navy);
+  flex: none;
+}
+
+.summaryLink:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 680px) {
+  .brandTag,
+  .brandSub {
+    display: none;
+  }
+
+  .headerInner {
+    align-items: flex-start;
+  }
+
+  .nav {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .timelineHead {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 
 .section {

@@ -14,6 +14,7 @@ from app.routers import (
     household,
     imports,
     members,
+    reports,
     webhooks,
     whatsapp,
 )
@@ -59,6 +60,7 @@ app.include_router(events.router)  # PATCH, DELETE /api/events/{id}
 app.include_router(household.router)  # PATCH, DELETE /api/household; password change
 app.include_router(members.router)  # GET /api/members; POST /api/members/{id}/merge
 app.include_router(imports.router)  # POST /api/imports, /preview; GET /api/imports/{id}
+app.include_router(reports.router)  # GET/POST /api/reports; GET /api/reports/{id}
 app.include_router(whatsapp.router)  # GET /api/whatsapp/status; POST /link, /relink
 app.include_router(webhooks.router)  # POST /api/whatsapp/webhook — HMAC, no cookie
 

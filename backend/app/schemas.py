@@ -310,6 +310,70 @@ class EventPatch(BaseModel):
     details: dict[str, Any] | None = None
 
 
+class EventCreate(BaseModel):
+    """A family-authored timeline entry. It has no source excerpt because it is the source."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: EventKind
+    title: str = Field(min_length=1, max_length=TITLE_MAX_CHARS)
+    body: str | None = Field(default=None, max_length=BODY_MAX_CHARS)
+    occurred_at: datetime
+    occurred_at_precision: OccurredAtPrecision = "exact"
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
+# --- reports -------------------------------------------------------------------------------
+
+
+class ReportSummaryOut(BaseModel):
+    id: UUID
+    title: str
+    period_start: UtcDatetime
+    period_end: UtcDatetime
+    status: Literal["pending", "running", "complete", "failed"]
+    generated_at: UtcDatetime | None = None
+
+
+class ReportCitationOut(BaseModel):
+    handle: str
+    event_id: UUID
+    kind: EventKind
+    occurred_at: UtcDatetime
+    title: str
+
+
+class ReportSectionOut(BaseModel):
+    heading: str
+    body_markdown: str
+    citations: list[ReportCitationOut] = Field(default_factory=list)
+
+
+class ReportOut(ReportSummaryOut):
+    summary: str = ""
+    urgent_flag: bool = False
+    urgent_reason: str | None = None
+    sections: list[ReportSectionOut] = Field(default_factory=list)
+    questions_for_the_doctor: list[str] = Field(default_factory=list)
+    watch_items: list[str] = Field(default_factory=list)
+    data_gaps: list[str] = Field(default_factory=list)
+    error: str | None = None
+
+
+class ReportCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    period_days: int = Field(default=30, ge=1, le=365)
+
+
+def to_report_summary(row: Any) -> ReportSummaryOut:
+    return ReportSummaryOut.model_validate(row, from_attributes=True)
+
+
+def to_report(row: Any) -> ReportOut:
+    return ReportOut.model_validate(row, from_attributes=True)
+
+
 # --- household ----------------------------------------------------------------------------
 
 

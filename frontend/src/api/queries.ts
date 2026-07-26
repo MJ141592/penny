@@ -15,6 +15,7 @@ import {
 
 import type {
   Event,
+  EventCreate,
   FeedPage,
   ImportState,
   ImportStatus,
@@ -25,6 +26,8 @@ import type {
 import { ApiError } from './client'
 import {
   changePassword,
+  createEvent,
+  createReport,
   deleteEvent,
   getFeed,
   getImportStatus,
@@ -282,6 +285,17 @@ export function useUpdateEvent(): UseMutationResult<
   })
 }
 
+export function useCreateEvent(): UseMutationResult<Event, Error, EventCreate> {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: createEvent,
+    onSuccess: () => {
+      invalidateEventViews(client)
+      void client.invalidateQueries({ queryKey: queryKeys.session })
+    },
+  })
+}
+
 /** Soft delete server-side; here it just leaves, and comes back if the request didn't. */
 export function useDeleteEvent(): UseMutationResult<void, Error, string, EventRollback> {
   const client = useQueryClient()
@@ -294,6 +308,17 @@ export function useDeleteEvent(): UseMutationResult<void, Error, string, EventRo
     },
     onError: (_error, _id, snapshot) => restoreEventSnapshot(client, snapshot),
     onSettled: () => invalidateEventViews(client),
+  })
+}
+
+export function useCreateReport() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (periodDays: number) => createReport(periodDays),
+    onSuccess: (report) => {
+      void client.invalidateQueries({ queryKey: queryKeys.reports })
+      client.setQueryData(queryKeys.report(report.id), report)
+    },
   })
 }
 

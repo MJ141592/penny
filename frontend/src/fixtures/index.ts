@@ -16,6 +16,7 @@
 
 import type {
   Event,
+  EventCreate,
   FeedPage,
   Household,
   ImportAccepted,
@@ -63,6 +64,7 @@ const LATENCY_MS = 140
 
 // Mutable so edits and deletes survive a navigation the way the real backend would.
 let events: Event[] = structuredClone(BLANK ? (emptyFeed.events as Event[]) : ALL_EVENTS)
+let demoReports: Report[] = structuredClone(ALL_REPORTS)
 // `care_recipient_name` is NOT NULL, so a freshly provisioned household holds the placeholder —
 // and that placeholder is exactly what the first-run setup keys off.
 let household: Household =
@@ -207,6 +209,46 @@ async function handlePatchEvent(id: string, init: RequestInit): Promise<Response
   return json(merged)
 }
 
+async function handleCreateEvent(init: RequestInit): Promise<Response> {
+  const body = (await readJsonBody(init)) as unknown as EventCreate
+  if (!body.title?.trim()) return problem(422, 'A title is required.')
+  const defaults = {
+    symptom: { symptom: body.title, severity: 'unknown', body_site: null, duration_text: null },
+    appointment: {
+      appointment_kind: 'other',
+      provider_name: null,
+      location: null,
+      attendees: [],
+      outcome: null,
+      follow_up_actions: [],
+      status: 'attended',
+    },
+    medication: {
+      medication_name: body.title,
+      dose_text: null,
+      action: 'other',
+      prescriber: null,
+    },
+    note: { category: 'other' },
+  }
+  const now = new Date().toISOString()
+  const event = {
+    id: crypto.randomUUID(),
+    kind: body.kind,
+    title: body.title.trim(),
+    body: body.body?.trim() || null,
+    occurred_at: body.occurred_at || now,
+    occurred_at_precision: body.occurred_at_precision ?? 'exact',
+    details: { ...defaults[body.kind], ...body.details },
+    actor: null,
+    source_excerpts: [],
+    edited_at: null,
+    created_at: now,
+  } as Event
+  events = [event, ...events].sort((a, b) => b.occurred_at.localeCompare(a.occurred_at))
+  return json(event, 201)
+}
+
 async function respond(method: string, path: string, query: URLSearchParams, init: RequestInit) {
   const [head, second] = path.split('/').filter(Boolean)
 
@@ -296,6 +338,7 @@ async function respond(method: string, path: string, query: URLSearchParams, ini
     return noContent()
   }
 
+  if (method === 'POST' && head === 'events' && !second) return handleCreateEvent(init)
   if (head === 'events' && second) {
     if (method === 'PATCH') return handlePatchEvent(second, init)
     if (method === 'DELETE') {
@@ -305,12 +348,21 @@ async function respond(method: string, path: string, query: URLSearchParams, ini
     }
   }
 
-  if (method === 'POST' && head === 'reports' && second === 'generate') {
-    return problem(429, 'A report was already generated today.')
+  if (method === 'POST' && head === 'reports' && !second) {
+    const source = demoReports.find((report) => report.status === 'complete')
+    if (!source) return problem(422, 'There are no care events to summarise.')
+    const generated = {
+      ...structuredClone(source),
+      id: crypto.randomUUID(),
+      title: 'Care summary · last 30 days',
+      generated_at: new Date().toISOString(),
+    }
+    demoReports = [generated, ...demoReports]
+    return json(generated, 201)
   }
   if (method === 'GET' && head === 'reports') {
-    if (!second) return json(ALL_REPORTS.map(summarise))
-    const report = ALL_REPORTS.find((candidate) => candidate.id === second)
+    if (!second) return json(demoReports.map(summarise))
+    const report = demoReports.find((candidate) => candidate.id === second)
     return report ? json(report) : notFound()
   }
 

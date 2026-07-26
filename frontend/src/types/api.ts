@@ -115,6 +115,15 @@ export type NoteEvent = EventBase & { kind: 'note'; details: NoteDetails }
  */
 export type Event = SymptomEvent | AppointmentEvent | MedicationEvent | NoteEvent
 
+export interface EventCreate {
+  kind: EventKind
+  title: string
+  body?: string | null
+  occurred_at: string
+  occurred_at_precision?: OccurredAtPrecision
+  details?: Record<string, unknown>
+}
+
 /** `GET /api/feed`. `next_before` is null when there is no next page. */
 export interface FeedPage {
   events: Event[]

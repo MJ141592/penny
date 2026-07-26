@@ -323,6 +323,25 @@ shape. "Upcoming" is a query, not an entity.
 
 An empty list is the common case and must render as an empty state, not a spinner.
 
+### `POST /api/events`
+
+Creates a family-authored timeline entry. Manual entries have no source excerpt: the family member
+writing the entry is the source. They use a `human:<uuid>` deduplication key, so extraction can
+never merge into or overwrite them.
+
+```json
+{
+  "kind": "note",
+  "title": "Lunch with Liz",
+  "body": "Margaret ate well and seemed in good spirits.",
+  "occurred_at": "2026-07-25T12:30:00Z",
+  "occurred_at_precision": "exact",
+  "details": { "category": "other" }
+}
+```
+
+**201** returns the complete `Event`.
+
 ### `PATCH /api/events/{id}`
 
 Full trust: anyone signed in edits anything. All fields optional.
@@ -481,9 +500,7 @@ Newest first.
 
 ### `GET /api/reports/{id}`
 
-Citations are **resolved server-side**. The model writes opaque `[E3]` handles (never UUIDs — models
-transpose long hex runs), and this response maps each handle to a real event so the UI can link it.
-Handles that don't resolve are stripped before storage: a dead citation never reaches the client.
+Citations are **resolved server-side** and always point to a real event in the same household.
 
 ```json
 {
@@ -518,22 +535,21 @@ Handles that don't resolve are stripped before storage: a dead citation never re
 }
 ```
 
-Statistics in the prose are computed in SQL and handed to the model, never counted by it.
+Statistics in the on-demand summary are computed from the stored event rows, never invented by a
+model.
 
 - **404** if missing or not yours.
 
-### `POST /api/reports/generate`
+### `POST /api/reports`
 
-No body. **202**:
+Generates a citation-preserving summary synchronously from the household’s stored timeline. The
+optional period is capped at one year.
 
 ```json
-{ "report_id": "77c1...", "status": "pending" }
+{ "period_days": 30 }
 ```
 
-Poll `GET /api/reports/{id}`.
-
-- **429** — `{"detail": "A report was already generated today."}` Limit is 1/day/household on
-  demand; the weekly report is produced by the cron tick.
+**201** returns the complete report body shown above.
 
 ---
 

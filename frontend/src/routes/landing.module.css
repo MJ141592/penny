@@ -1,0 +1,408 @@
+/*
+ * The landing page is a full-bleed brand moment, deliberately outside the app's token system and
+ * pinned to one warm paper look in both colour schemes (hence color-scheme: light) — like any
+ * marketing site, it keeps its identity rather than following the OS.
+ *
+ * Composition rules the design leans on: an asymmetric two-column grid (copy left, number scene
+ * right, the scene tipped a degree off-axis), hairline rules instead of boxes, hard offset
+ * shadows instead of soft glows, and exactly two hand-touches — the scribble under "your
+ * messages" and the WhatsApp bubble. Everything in the number scene scales from the .number
+ * font-size: tiles, gaps, and shadows are all in em, so one clamp() keeps the lockup
+ * proportional from phone to desktop.
+ */
+
+.page {
+  position: relative;
+  isolation: isolate;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  color-scheme: light;
+  color: #6f614c;
+  background: #faf5ec;
+}
+
+/*
+ * Ambient warmth: a handful of soft, off-axis light pools in the coin's own palette — gold up top
+ * for hope, umber pooling low-left for weight — so the page reads like it's lit by a hearth rather
+ * than a flat brand wash. Drifts almost imperceptibly; it's meant to feel alive, not animated.
+ */
+.page::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(42% 36% at 88% 2%, rgba(242, 179, 66, 0.6), transparent 68%),
+    radial-gradient(34% 30% at 58% -10%, rgba(226, 87, 43, 0.16), transparent 70%),
+    radial-gradient(52% 46% at 0% 102%, rgba(122, 71, 28, 0.4), transparent 72%),
+    radial-gradient(28% 24% at 18% 22%, rgba(187, 113, 39, 0.18), transparent 74%);
+  animation: glow 28s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+  from {
+    opacity: 0.85;
+    translate: 0 0;
+  }
+  to {
+    opacity: 1;
+    translate: -1.2% 1.2%;
+  }
+}
+
+/* Paper grain: one feTurbulence tile, multiplied at low opacity over the whole page. */
+.page::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* --- Top bar ---------------------------------------------------------------- */
+
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px clamp(20px, 4vw, 40px);
+  border-bottom: 1px solid #e9dfcd;
+}
+
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+  color: #221a10;
+}
+
+.coin {
+  width: 28px;
+  height: 28px;
+  display: block;
+}
+
+.signIn {
+  font-size: 15px;
+  font-weight: 600;
+  color: #5c4f3d;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 1px;
+  transition: color 0.15s ease;
+}
+
+.signIn:hover {
+  color: #221a10;
+}
+
+/* --- Hero -------------------------------------------------------------------- */
+
+.hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding: 48px clamp(20px, 5vw, 56px) 64px;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+/* --- The number scene --------------------------------------------------------- */
+
+.scene {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+  margin-bottom: clamp(40px, 7vh, 64px);
+}
+
+.bubble {
+  position: relative;
+  z-index: 1;
+  margin-top: 22px;
+  rotate: -1deg;
+  padding: 12px 16px;
+  border-radius: 16px 16px 4px 16px;
+  border: 1px solid rgba(18, 53, 36, 0.12);
+  background: #d9fdd3;
+  color: #123524;
+  font-size: clamp(16px, 1.4vw, 19px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  box-shadow: 2px 3px 0 rgba(64, 47, 22, 0.12);
+  animation: settle 0.4s cubic-bezier(0.22, 1, 0.36, 1) 0.2s backwards;
+}
+
+/* The WhatsApp tail, attached at the tight corner. */
+.bubble::after {
+  content: '';
+  position: absolute;
+  right: -9px;
+  bottom: -1px;
+  width: 12px;
+  height: 12px;
+  background: #d9fdd3;
+  clip-path: polygon(0 0, 0 100%, 100% 100%);
+}
+
+.bubbleMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 12px;
+  vertical-align: baseline;
+  font-size: 0.56em;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: #5b7a66;
+}
+
+@keyframes settle {
+  from {
+    opacity: 0;
+    scale: 0.9;
+  }
+}
+
+.number {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  column-gap: 0.45em;
+  row-gap: 0.4em;
+  font-size: clamp(32px, 3.6vw, 52px);
+  font-weight: 800;
+}
+
+.group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.16em;
+  white-space: nowrap;
+}
+
+.tile {
+  display: inline-grid;
+  place-items: center;
+  width: 1.4em;
+  height: 1.52em;
+  border-radius: 0.3em;
+  color: #4a3418;
+  transform: rotate(var(--tilt));
+  box-shadow:
+    0.1em 0.12em 0 rgba(74, 52, 24, 0.16),
+    inset 0 0.07em 0 rgba(255, 255, 255, 0.5);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: bob 7s ease-in-out infinite;
+  animation-delay: var(--delay);
+}
+
+.scene:hover .tile {
+  transform: rotate(0deg) scale(1.05);
+}
+
+@keyframes bob {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -0.12em;
+  }
+}
+
+.coral {
+  background: #ffab9c;
+}
+
+.marigold {
+  background: #ffcf6b;
+}
+
+.sky {
+  background: #9cc8ff;
+}
+
+.leaf {
+  background: #93e0b6;
+}
+
+.lilac {
+  background: #c8b3ff;
+}
+
+.rose {
+  background: #ffb3cf;
+}
+
+.mark {
+  font-size: 0.85em;
+  font-weight: 700;
+  color: #c4b295;
+}
+
+/* --- Copy & CTA ----------------------------------------------------------------- */
+
+/*
+ * Deliberately not a centered stack: headline reads left like a page of type, and the CTA docks
+ * beside it rather than floating beneath its own caption — the two moved apart is what keeps this
+ * from reading as a template hero block.
+ */
+.copy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: clamp(28px, 5vw, 56px);
+  width: 100%;
+  text-align: left;
+}
+
+.copyMain {
+  flex: 1 1 440px;
+  max-width: 580px;
+}
+
+.copyAction {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex: 0 0 auto;
+}
+
+.headline {
+  margin: 0 0 14px;
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: clamp(30px, 3.4vw, 47px);
+  font-weight: 500;
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  color: #221a10;
+}
+
+.flourish {
+  font-style: italic;
+  font-weight: 500;
+  color: #e2572b;
+}
+
+.sub {
+  margin: 0;
+  max-width: 46ch;
+  font-size: clamp(16px, 1.3vw, 18px);
+  line-height: 1.55;
+  text-wrap: balance;
+}
+
+/*
+ * The CTA is styled as the message it sends, not a generic pill: an outgoing WhatsApp bubble,
+ * tail and all, sitting opposite the "add me to your group chat" preview bubble up in the scene —
+ * clicking it is visually the same act as hitting send.
+ */
+.cta {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  padding: 16px 26px 16px 22px;
+  border-radius: 22px 22px 4px 22px;
+  background: #25d366;
+  color: #fff;
+  font-size: clamp(17px, 1.4vw, 19px);
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  text-decoration: none;
+  box-shadow: 3px 4px 0 rgba(64, 47, 22, 0.18);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+
+.cta::after {
+  content: '';
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 11px;
+  height: 11px;
+  background: #25d366;
+  clip-path: polygon(0 0, 100% 100%, 0 100%);
+}
+
+.cta:hover {
+  background: #1fb457;
+  transform: translate(-1px, -2px);
+  box-shadow: 4px 6px 0 rgba(64, 47, 22, 0.2);
+}
+
+.cta:hover::after {
+  background: #1fb457;
+}
+
+.cta:active {
+  transform: translate(0, 0);
+  box-shadow: 2px 2px 0 rgba(64, 47, 22, 0.18);
+}
+
+.ctaLogo {
+  width: 1.35em;
+  height: 1.35em;
+  flex-shrink: 0;
+}
+
+.ctaHint {
+  margin: 10px 0 0 4px;
+  font-size: 13.5px;
+  color: #99896f;
+}
+
+/* --- Footer -------------------------------------------------------------------- */
+
+.footer {
+  padding: 22px clamp(20px, 4vw, 40px);
+  text-align: center;
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+  color: #a4937a;
+}
+
+/* --- Responsive & motion -------------------------------------------------------- */
+
+@media (max-width: 880px) {
+  .hero {
+    padding-bottom: 48px;
+  }
+
+  .number {
+    font-size: clamp(28px, 7.4vw, 44px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page::before,
+  .tile,
+  .bubble {
+    animation: none;
+  }
+
+  .scene:hover .tile {
+    transform: rotate(var(--tilt));
+  }
+}
