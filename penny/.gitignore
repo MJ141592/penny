@@ -1,0 +1,24 @@
+# Secrets — regenerate per environment.
+# Broad glob so .env.local and friends can never slip through at any depth.
+.env
+.env.*
+**/.env
+**/.env.*
+
+# ...but the placeholder template is meant to be committed.
+!.env.example
+
+# GOWA engine binary and its session/message store.
+# storages/ holds the linked-device credentials: treat it like a password.
+engine/gowa
+engine/storages/
+
+# Runtime artefacts written by the engine:
+#   statics/media   — media auto-downloaded from real WhatsApp conversations
+#   statics/qrcode  — pairing QR images
+# Both are private to the linked account and must never be committed.
+engine/statics/
+
+node_modules/
+.next/
+.DS_Store

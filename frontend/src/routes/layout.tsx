@@ -13,9 +13,10 @@ const NAV = [
 /**
  * The shell every screen renders inside, and the one place the session gate lives.
  *
- * A 401 from `GET /api/me` means signed out, and this redirects to /login. Doing it here rather
- * than per route means a new route cannot forget to be protected, and it is why the retry policy
- * matters: retrying the 401 would stall on a spinner before the redirect ever happened.
+ * A 401 from `GET /api/me` means signed out, and this redirects to /welcome — visitors get the
+ * marketing page, and existing families reach the login form from its Sign in link. Doing it here
+ * rather than per route means a new route cannot forget to be protected, and it is why the retry
+ * policy matters: retrying the 401 would stall on a spinner before the redirect ever happened.
  */
 export function Layout() {
   const session = useSession()
@@ -37,6 +38,7 @@ export function Layout() {
         <div className={styles.headerInner}>
           <NavLink to="/" className={styles.brand}>
             Penny
+            <span className={styles.brandTag}>Care Record</span>
             {session.data ? (
               <span className={styles.brandSub}>{session.data.household.name}</span>
             ) : null}
@@ -85,7 +87,7 @@ function Gate({
   onLoginScreen: boolean
 }) {
   if (isPending) return <p className={styles.hint}>Loading…</p>
-  if (signedOut && !onLoginScreen) return <Navigate to="/login" replace />
+  if (signedOut && !onLoginScreen) return <Navigate to="/welcome" replace />
   if (!signedOut && onLoginScreen) return <Navigate to="/" replace />
   return <Outlet />
 }

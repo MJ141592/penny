@@ -8,6 +8,12 @@ interface ImportMetaEnv {
    * ship a build that quietly shows invented data.
    */
   readonly VITE_USE_FIXTURES?: string
+
+  /**
+   * Penny's WhatsApp number for the landing page's wa.me links, digits only in E.164 order
+   * (`17479429824`). Unset falls back to Penny's real number, hard-coded in landing.tsx.
+   */
+  readonly VITE_PENNY_WHATSAPP_NUMBER?: string
 }
 
 interface ImportMeta {

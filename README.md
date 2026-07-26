@@ -49,6 +49,7 @@ cp .env.example .env   # then fill in your real keys
 | `LLM_MONTHLY_BUDGET_USD_PER_HOUSEHOLD` | no | `15` | Per-household monthly spend guard |
 | `DEFAULT_TIMEZONE` | no | `Europe/London` | Default household timezone |
 | `SERVE_FRONTEND` | no | `true` | Mount `frontend/dist` from the API process (how production serves the SPA) |
+| `VITE_PENNY_WHATSAPP_NUMBER` | no | Penny's number | Penny's WhatsApp number for the landing page's wa.me links (digits only, E.164 order). Vite build-time, not a backend setting |
 
 Test-only, read by the suite rather than by `Settings`: `RUN_LIVE_OPENAI_TESTS=1` opts in to the
 `live` tests.

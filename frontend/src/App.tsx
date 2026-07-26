@@ -2,6 +2,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router'
 
 import { FeedRoute } from './routes/feed'
 import { ImportRoute } from './routes/import'
+import { LandingRoute } from './routes/landing'
 import { Layout } from './routes/layout'
 import { LoginRoute } from './routes/login'
 import { NotFoundRoute, RouteErrorBoundary } from './routes/not-found'
@@ -14,6 +15,9 @@ import { SettingsRoute } from './routes/settings'
  * something the router can fix.
  */
 const router = createBrowserRouter([
+  // Outside Layout on purpose: the landing page is a full-bleed marketing front door with no
+  // session gate, no header, and no app chrome.
+  { path: '/welcome', element: <LandingRoute /> },
   {
     path: '/',
     element: <Layout />,

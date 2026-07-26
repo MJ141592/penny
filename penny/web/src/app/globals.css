@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #ffffff;
+  --bg-sunken: #f4f5f7;
+  --bg-raised: #ffffff;
+  --border: #e3e5e8;
+  --text: #16191d;
+  --text-dim: #6a7280;
+  --accent: #0f8f7e;
+  --accent-fg: #ffffff;
+  --bubble-in: #f0f1f3;
+  --bubble-out: #d6f2ec;
+  --mention: #0b6b5e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1215;
+    --bg-sunken: #15191d;
+    --bg-raised: #1b2026;
+    --border: #272d34;
+    --text: #e8eaed;
+    --text-dim: #8b939d;
+    --accent: #1fb89f;
+    --accent-fg: #06120f;
+    --bubble-in: #1f252c;
+    --bubble-out: #10403a;
+    --mention: #4fd6bd;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-sunken: var(--bg-sunken);
+  --color-raised: var(--bg-raised);
+  --color-line: var(--border);
+  --color-ink: var(--text);
+  --color-dim: var(--text-dim);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-bubble-in: var(--bubble-in);
+  --color-bubble-out: var(--bubble-out);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Thin, unobtrusive scrollbars in the scrolling panes. */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.scroll-thin::-webkit-scrollbar {
+  width: 8px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+}
+
+.mention-token {
+  color: var(--mention);
+  font-weight: 600;
+}

@@ -1,0 +1,757 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@1,600&family=Newsreader:wght@400;500;600&display=swap');
+
+/*
+ * "01 · Today — Person Overview" — a 1:1 build of the Paper mockup. Every value below is
+ * transcribed from the design file, so the tokens are scoped here rather than shared with
+ * index.css: this screen is its own design system and must not drift when the app tokens do.
+ */
+
+.page {
+  background: #fff;
+  min-height: 100svh;
+  color-scheme: light;
+}
+
+.shell {
+  --color-bg: #fff;
+  --color-surface: #f3f5f7;
+  --color-ink: #0e1b26;
+  --color-muted: #5b6b77;
+  --color-line: #e2e7eb;
+  --color-navy: #17456e;
+  --color-kelp: #3e6b51;
+  --color-rust: #b0562b;
+  --color-fog-tint: #edf1f4;
+  --font-display: 'Newsreader', serif;
+  --font-ui: 'Inter', sans-serif;
+  --font-wordmark: 'Fraunces', serif;
+  --font-system: system-ui, sans-serif;
+  --text-display: 34px;
+  --text-body: 15px;
+  --text-small: 13px;
+  --text-label: 11px;
+  --tracking-tight: -0.01em;
+  --tracking-caps: 0.08em;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-full: 999px;
+
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: 1440px;
+  min-height: 900px;
+  margin-inline: auto;
+  overflow: clip;
+  background: var(--color-bg);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--color-ink);
+}
+
+.shell *,
+.shell *::before,
+.shell *::after {
+  box-sizing: border-box;
+}
+
+/* ---- Top bar ---- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding-block: 20px;
+  padding-inline: 48px;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.wordmark {
+  font-family: var(--font-wordmark);
+  font-size: 22px;
+  font-style: italic;
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  line-height: 28px;
+  color: var(--color-ink);
+}
+
+.brandSub {
+  font-family: var(--font-system);
+  font-size: 12px;
+  letter-spacing: var(--tracking-caps);
+  line-height: 16px;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.topbarRight {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.search {
+  font-family: var(--font-system);
+  font-size: 13px;
+  line-height: 16px;
+  color: var(--color-muted);
+}
+
+.userAvatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--color-navy);
+  font-family: var(--font-system);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  color: #fff;
+}
+
+/* ---- Identity row ---- */
+
+.identity {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  width: 100%;
+  padding: 44px 48px 28px;
+}
+
+.identityLeft {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.personAvatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 72px;
+  height: 72px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-full);
+  background: var(--color-fog-tint);
+  font-family: var(--font-display);
+  font-size: 26px;
+  line-height: 32px;
+  color: var(--color-navy);
+}
+
+.identityText {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nameRow {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+
+.personName {
+  font-family: var(--font-display);
+  font-size: var(--text-display);
+  font-weight: 500;
+  letter-spacing: var(--tracking-tight);
+  line-height: 42px;
+  color: var(--color-ink);
+}
+
+.personMeta {
+  font-family: var(--font-system);
+  font-size: 15px;
+  line-height: 18px;
+  color: var(--color-muted);
+}
+
+.contributors {
+  font-family: var(--font-system);
+  font-size: 14px;
+  line-height: 18px;
+  color: var(--color-muted);
+}
+
+.addUpdate {
+  padding-block: 9px;
+  padding-inline: 16px;
+  border-radius: var(--radius-sm);
+  background: var(--color-navy);
+  font-family: var(--font-system);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 16px;
+  color: #fff;
+}
+
+/* ---- Stat band ---- */
+
+.statBand {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 36px;
+  margin: 0 48px 20px;
+  padding-block: 16px;
+  padding-inline: 24px;
+  border-radius: var(--radius-md);
+  background: var(--color-fog-tint);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.statLabel {
+  font-family: var(--font-system);
+  font-size: var(--text-label);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  line-height: 14px;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.statLabelAlert {
+  color: var(--color-rust);
+}
+
+.statValue {
+  font-family: var(--font-system);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 18px;
+  color: var(--color-ink);
+}
+
+.statValueStrong {
+  font-weight: 600;
+}
+
+/* ---- Main columns ---- */
+
+.main {
+  display: flex;
+  gap: 56px;
+  width: 100%;
+  padding: 8px 48px 56px;
+}
+
+.timelineCol {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0%;
+  gap: 24px;
+  min-width: 0;
+}
+
+.timelineHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding-top: 12px;
+}
+
+.timelineTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-display);
+  font-weight: 500;
+  line-height: 42px;
+  color: var(--color-ink);
+}
+
+.headActions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.navyLink {
+  font-family: var(--font-system);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--color-navy);
+}
+
+/* ---- Filters ---- */
+
+.filters {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding-top: 4px;
+}
+
+.filterRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.filterLabel {
+  flex-shrink: 0;
+  width: 92px;
+  font-family: var(--font-system);
+  font-size: 13px;
+  line-height: 16px;
+  color: var(--color-muted);
+}
+
+.chipActive {
+  padding-block: 7px;
+  padding-inline: 16px;
+  border-radius: var(--radius-full);
+  background: var(--color-ink);
+  font-family: var(--font-system);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 16px;
+  color: #fff;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding-block: 7px;
+  padding-inline: 16px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-full);
+  background: #fff;
+  font-family: var(--font-system);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--color-ink);
+}
+
+.chipIcon {
+  flex-shrink: 0;
+}
+
+.chipDot {
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+}
+
+.showing {
+  font-family: var(--font-system);
+  font-size: 12.5px;
+  line-height: 16px;
+  color: var(--color-muted);
+}
+
+/* ---- Timeline ---- */
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 100%;
+  padding-top: 12px;
+}
+
+.timelineRow {
+  display: flex;
+  gap: 20px;
+  width: 100%;
+}
+
+.dateCol {
+  flex-shrink: 0;
+  width: 110px;
+}
+
+.entryDateCol {
+  padding-top: 18px;
+}
+
+.yearLabel {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  width: 100%;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 30px;
+  text-align: right;
+  color: var(--color-ink);
+}
+
+.dateLabel {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  width: 100%;
+  font-family: var(--font-system);
+  font-size: 12px;
+  line-height: 16px;
+  text-align: right;
+  color: var(--color-muted);
+}
+
+.railCol {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 40px;
+}
+
+.railStart {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  margin-top: 10px;
+  border: 2px solid var(--color-ink);
+  border-radius: 999px;
+  background: var(--color-bg);
+}
+
+.railStub {
+  flex-shrink: 0;
+  width: 2px;
+  height: 10px;
+  background: var(--color-line);
+}
+
+.railLine {
+  flex-grow: 1;
+  width: 2px;
+  background: var(--color-line);
+}
+
+.railIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  background: var(--color-bg);
+}
+
+.yearSpacer {
+  flex-grow: 1;
+  height: 40px;
+}
+
+.entryBody {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  gap: 8px;
+  padding-top: 14px;
+  padding-bottom: 28px;
+}
+
+.entryTitleRow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.entryTitle {
+  font-family: var(--font-system);
+  font-size: var(--text-body);
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--color-ink);
+}
+
+.entryTag {
+  font-family: var(--font-system);
+  font-size: var(--text-label);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  line-height: 14px;
+  text-transform: uppercase;
+}
+
+.entryText {
+  font-family: var(--font-system);
+  font-size: var(--text-small);
+  line-height: 20px;
+  color: var(--color-muted);
+}
+
+.entryPhoto {
+  flex-shrink: 0;
+  width: 100%;
+  height: 478px;
+  border-radius: var(--radius-md);
+  background-position: 50%;
+  background-size: cover;
+}
+
+.entryMeta {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.entrySource {
+  font-family: var(--font-system);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--color-muted);
+}
+
+.entryLink {
+  font-family: var(--font-system);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--color-navy);
+}
+
+.evidence {
+  display: flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  margin-top: 4px;
+  padding-block: 7px;
+  padding-inline: 14px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-full);
+  background: var(--color-bg);
+}
+
+.evidenceLabel {
+  font-family: var(--font-system);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 14px;
+  color: var(--color-navy);
+}
+
+/* ---- Right rail ---- */
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 32px;
+  width: 380px;
+}
+
+.railSection {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+
+.railSectionMeds {
+  padding-top: 12px;
+}
+
+.railSectionReminders {
+  gap: 12px;
+}
+
+.railHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.railLabel {
+  font-family: var(--font-system);
+  font-size: var(--text-label);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  line-height: 14px;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.railAction {
+  font-family: var(--font-system);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--color-navy);
+}
+
+.medRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.medBar {
+  flex-shrink: 0;
+  width: 3px;
+  height: 36px;
+  border-radius: 2px;
+  background: var(--color-line);
+}
+
+.medBarChanged {
+  background: var(--color-rust);
+}
+
+.medText {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0%;
+  gap: 1px;
+}
+
+.medName {
+  font-family: var(--font-system);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 18px;
+  color: var(--color-ink);
+}
+
+.medNameChanged {
+  font-weight: 600;
+}
+
+.medSub {
+  font-family: var(--font-system);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--color-muted);
+}
+
+.medStatus {
+  flex-shrink: 0;
+  font-family: var(--font-system);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 14px;
+  color: var(--color-rust);
+}
+
+.reminderCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  padding-block: 14px;
+  padding-inline: 16px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.reminderIntro {
+  font-family: var(--font-system);
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--color-muted);
+}
+
+.reminder {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.reminderRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.reminderTime {
+  flex-shrink: 0;
+  width: 44px;
+  font-family: var(--font-system);
+  font-size: var(--text-small);
+  font-weight: 600;
+  line-height: 16px;
+  color: var(--color-ink);
+}
+
+.reminderDoses {
+  flex-grow: 1;
+  font-family: var(--font-system);
+  font-size: var(--text-small);
+  line-height: 16px;
+  color: var(--color-ink);
+}
+
+.reminderTaken {
+  flex-shrink: 0;
+  font-family: var(--font-system);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--color-kelp);
+}
+
+.reminderPending {
+  color: var(--color-muted);
+}
+
+.reminderSub {
+  padding-left: 54px;
+  font-family: var(--font-system);
+  font-size: 11.5px;
+  line-height: 15px;
+  color: var(--color-muted);
+}
+
+.reminderFooter {
+  padding-top: 8px;
+  border-top: 1px solid var(--color-line);
+  font-family: var(--font-system);
+  font-size: 11.5px;
+  line-height: 14px;
+  color: var(--color-muted);
+}
+
+.condition {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.conditionName {
+  font-family: var(--font-system);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 18px;
+  color: var(--color-ink);
+}
+
+.conditionSub {
+  font-family: var(--font-system);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--color-muted);
+}

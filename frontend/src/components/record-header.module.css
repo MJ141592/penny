@@ -1,0 +1,90 @@
+.header {
+  margin-bottom: 28px;
+}
+
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.avatar {
+  flex: none;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: var(--serif);
+  font-size: 24px;
+  color: var(--navy);
+  background: color-mix(in oklab, var(--navy) 12%, var(--surface));
+}
+
+.name {
+  font-family: var(--serif);
+  font-size: 34px;
+  font-weight: 500;
+  letter-spacing: -0.4px;
+  margin: 0;
+}
+
+.contributors {
+  font-size: 14px;
+  color: var(--text);
+  margin-top: 2px;
+}
+
+.addUpdate {
+  margin-left: auto;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--navy);
+  color: var(--navy-contrast);
+  font-weight: 500;
+  font-size: 15px;
+  padding: 10px 16px;
+  cursor: pointer;
+}
+
+.addUpdate:hover {
+  opacity: 0.9;
+}
+
+.statBand {
+  margin: 20px 0 0;
+  padding: 14px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px 28px;
+}
+
+@media (max-width: 860px) {
+  .statBand {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.statLabel,
+.statLabelAlert {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--text);
+}
+
+.statLabelAlert {
+  color: var(--kind-symptom);
+}
+
+.statValue {
+  margin: 3px 0 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-h);
+  line-height: 140%;
+}

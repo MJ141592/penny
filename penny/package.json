@@ -1,0 +1,18 @@
+{
+  "name": "penny",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Programmatic WhatsApp Business control — GOWA engine + chat console",
+  "scripts": {
+    "engine": "./engine/start.sh",
+    "engine:debug": "DEBUG=true ./engine/start.sh",
+    "web": "npm --prefix web run dev -- --port 3001",
+    "dev": "npm-run-all --parallel engine web",
+    "watch": "node scripts/watch.mjs",
+    "watch:all": "node scripts/watch.mjs --all",
+    "build": "npm --prefix web run build"
+  },
+  "devDependencies": {
+    "npm-run-all": "^4.1.5"
+  }
+}

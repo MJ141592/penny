@@ -1,0 +1,199 @@
+.rail {
+  width: 300px;
+  flex: none;
+  position: sticky;
+  top: 76px;
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  /* Taller-than-viewport rails scroll internally; otherwise their tail is unreachable. */
+  max-height: calc(100svh - 96px);
+  overflow-y: auto;
+}
+
+@media (max-width: 1023px) {
+  .rail {
+    display: none;
+  }
+}
+
+.labelRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--text);
+  margin: 0;
+}
+
+.labelAction {
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--navy);
+}
+
+.labelAction:hover {
+  text-decoration: underline;
+}
+
+/* ------------------------------------------------------------------------- medications -- */
+
+.meds {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.medRow {
+  display: flex;
+  gap: 10px;
+}
+
+.medBar,
+.medBarChanged {
+  flex: none;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.medBarChanged {
+  background: var(--kind-symptom);
+}
+
+.medText {
+  min-width: 0;
+  flex: 1;
+}
+
+.medName,
+.medNameChanged {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.medNameChanged {
+  color: var(--kind-symptom);
+}
+
+.medDetail {
+  display: block;
+  font-size: 12px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.medStatus {
+  flex: none;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--kind-symptom);
+  padding-top: 2px;
+}
+
+/* --------------------------------------------------------------------------- reminders -- */
+
+.reminderCard {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 14px;
+}
+
+.reminderIntro {
+  font-size: 12px;
+  line-height: 145%;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+.reminder {
+  margin-bottom: 12px;
+}
+
+.reminderRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.reminderTime {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-h);
+  font-variant-numeric: tabular-nums;
+}
+
+.reminderDoses {
+  min-width: 0;
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+.reminderDone,
+.reminderPending {
+  flex: none;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.reminderDone {
+  color: var(--ok);
+}
+
+.reminderPending {
+  color: var(--text);
+}
+
+.reminderNote {
+  margin: 2px 0 0;
+  padding-left: 46px;
+  font-size: 11.5px;
+  line-height: 145%;
+  color: var(--text);
+}
+
+.reminderFooter {
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 11.5px;
+  color: var(--text);
+}
+
+/* -------------------------------------------------------------------------- conditions -- */
+
+.conditions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.conditionName {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+.conditionDetail {
+  font-size: 11.5px;
+  color: var(--text);
+}
