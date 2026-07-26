@@ -22,13 +22,24 @@
    `BackgroundTasks`, which runs after the response is written; doing it inline would blow the
    10-second budget on the first busy chunk and turn one message into five deliveries.
 
-3. **An unknown group is onboarded, not rejected.** Penny added to a group provisions a
-   household for it and posts the credentials back into the group. See the long comment on the
-   `UnknownGroupError` path for why that is not the tenant leak the previous rule guarded
-   against, and `_onboard_group` for the ordering it forces: household committed first, welcome
-   message second, never the other way round.
+3. **A MESSAGE NEVER PROVISIONS ANYTHING. A GENUINE JOIN IS THE ONLY TRIGGER.** This is the
+   rule that was learned the expensive way: the paired WhatsApp number is a REAL account that
+   was already sitting in several unrelated group chats, and provisioning on any message from
+   any unknown group posted a login password into strangers' conversations. Two accidental
+   households, one of them someone else's group. So the message path now provisions NOTHING —
+   an unlinked group is a logged 200 and no rows — and `_handle_group_event` is the only door
+   to `provision_for_group`, behind two independent gates. See its docstring.
 
-4. **Idempotency is not implemented here.** It lives in the partial unique index on
+   **When in doubt, stay silent.** A missed welcome is a support conversation. A password in a
+   stranger's group chat cannot be unsent.
+
+4. **Penny speaks only when spoken to.** A reply goes out for an explicit @-mention in a LINKED
+   group and for nothing else. In an unlinked group a mention is ignored exactly like any other
+   message — the mention is not a second onboarding trigger, because that is the same bug in a
+   new hat. Replies are rate-limited per household: every one is an LLM call and an outbound
+   WhatsApp message, and outbound volume is what gets the paired number banned.
+
+5. **Idempotency is not implemented here.** It lives in the partial unique index on
    `(household_id, provider_message_id)` and is enforced by `ingest_messages`. This handler's
    only job is to pass `payload.id` through faithfully, because a replay is the *expected* case
    whenever we are slow, not an anomaly.
@@ -45,7 +56,8 @@ import asyncio
 import hashlib
 import hmac
 import logging
-from collections import OrderedDict
+import time
+from collections import OrderedDict, deque
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
@@ -56,18 +68,25 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import gowa
+from app.assistant import answer_mention
 from app.config import get_settings
 from app.db import get_sessionmaker
 from app.deps import SessionDep
 from app.errors import PennyError, UnauthorizedError
 from app.extraction.service import run_extraction_for_household
+from app.groups import (
+    groups_first_seen_within,
+    in_startup_quiet_period,
+    join_burst_window_seconds,
+    observe_group,
+)
 from app.ingest.contract import (
     GROUP_JID_SUFFIX,
     InboundMessage,
-    IngestResult,
     UnknownGroupError,
 )
 from app.ingest.seam import ingest_messages
+from app.mentions import has_mention_marker, mentions_penny, normalise_jid
 from app.models import Household, Message
 from app.onboarding import provision_for_group, welcome_message
 
@@ -144,6 +163,42 @@ COMMIT_WAIT_SECONDS = 0.25
 # Strong references to detached extraction tasks. See `spawn_extraction`.
 _RUNNING: set[asyncio.Task[None]] = set()
 
+# --- @-mention replies ---------------------------------------------------------------------
+
+# A FEW PER HOUR, PER HOUSEHOLD, AND THAT IS THE POINT. Each reply is one OpenAI call and one
+# outbound WhatsApp message from a real, unappealable, single paired account — and outbound
+# volume is the thing that gets such an account banned. The whole plan rests on Penny's outbound
+# rate being near zero, so this is deliberately far below what a chatty family would generate.
+# Exceeding it is not an error the family should see: Penny simply says nothing, which is the
+# same thing she does for any message that is not addressed to her.
+MAX_REPLIES_PER_HOUSEHOLD = 4
+REPLY_WINDOW_SECONDS = 3600.0
+# Enough households to cover every real one many times over; the bound only exists so a forged
+# stream of chat ids cannot grow this dict without limit. Oldest key is evicted first.
+_REPLY_LIMIT_MAX_KEYS = 512
+_reply_hits: OrderedDict[UUID, deque[float]] = OrderedDict()
+
+# The paired account's own JID, so a mention can be recognised. It arrives free on every webhook
+# envelope as `device_id` (the runbook's captured body confirms the shape:
+# "628123456789@s.whatsapp.net"), and `gowa.list_devices()` is the fallback for the case where a
+# future GOWA drops the field. Cached because the alternative is a sidecar round trip on every
+# message, and it changes only when the number is re-paired.
+OWN_JID_TTL_SECONDS = 900.0
+# A failed lookup is cached too, briefly. Without it, a GOWA outage means every @-containing
+# message pays the timeout below — which is how a sidecar being down turns into webhook retries.
+OWN_JID_FAILURE_TTL_SECONDS = 60.0
+# The handler's whole budget is 10s before GOWA retries and the family gets duplicates. This is
+# the most of it a mention lookup may spend, against `gowa.STATUS_TIMEOUT` of 5s.
+OWN_JID_TIMEOUT_SECONDS = 2.5
+_own_jid: str | None = None
+_own_jid_expires_at: float = 0.0
+_own_jid_lock = asyncio.Lock()
+
+# Where the paired number might be found on a `/devices` entry. v9 answers `/app/status` with
+# `jid` and `/devices` with `id`; which of them carries the phone JID on a given build is not
+# something this code should have to know, so it takes the first field that looks like a number.
+_DEVICE_JID_FIELDS = ("jid", "device", "phone", "device_id", "id")
+
 
 class GowaMessagePayload(BaseModel):
     """`event.payload`.
@@ -206,8 +261,10 @@ class GowaEventHead(BaseModel):
 
 
 # Being ADDED to a group is not a message, so a `message`-only subscription hears nothing and
-# onboarding never fires — which is exactly how this shipped broken. These are the two events
-# that mean "we are in a new group", per GOWA's own README table.
+# onboarding never fires. Both events are still SUBSCRIBED — every group id they carry is fed to
+# the ledger — but only `group.joined` can provision. `group.participants` fires for every
+# membership change in every group Penny already sits in, so it is a poor "we are new here"
+# signal and an excellent way to mint a household when a cousin joins a months-old chat.
 GROUP_JOINED_EVENT = "group.joined"
 GROUP_PARTICIPANTS_EVENT = "group.participants"
 GROUP_EVENTS = frozenset({GROUP_JOINED_EVENT, GROUP_PARTICIPANTS_EVENT})
@@ -241,23 +298,6 @@ class GowaGroupEnvelope(BaseModel):
     event: str | None = None
     device_id: str | None = None
     payload: GowaGroupPayload | None = None
-
-
-def _is_self_join(envelope: GowaGroupEnvelope, payload: GowaGroupPayload) -> bool:
-    """Did WE just get added to this group, as opposed to someone else joining it?
-
-    `group.joined` means it by definition — GOWA emits it with `jids` set to our own JID.
-    `group.participants` fires for every membership change in every group we are already in, so
-    provisioning on it unconditionally would mint a household every time a cousin joins a chat
-    Penny has been sitting in for months. It only counts when the action is a join AND our own
-    JID is among the affected — and `device_id` on the envelope is that JID.
-    """
-    if envelope.event == GROUP_JOINED_EVENT:
-        return True
-    if (payload.type or "").lower() != "join":
-        return False
-    own = (envelope.device_id or "").split(":")[0].split("@")[0]
-    return bool(own) and any(own == jid.split(":")[0].split("@")[0] for jid in payload.jids)
 
 
 async def read_capped_body(request: Request, limit: int = MAX_BODY_BYTES) -> bytes:
@@ -410,16 +450,25 @@ async def gowa_webhook(
         log.warning("webhook.no_payload", extra={"event": envelope.event})
         return _ignored("unparsable")
 
+    # (c) There is NO `is_group` field. The suffix is the entire group signal, and a direct
+    # chat is out of scope for v1 — one linked group per household.
+    if not payload.chat_id.endswith(GROUP_JID_SUFFIX):
+        return _ignored("not_a_group")
+
+    # (c2) THE LEDGER, FILLED FROM EVERY EVENT WE SEE. Before anything else this group might be
+    # rejected for, write down that it exists. Most of the groups the paired account sits in
+    # will never fire a join event for us — the account was already in them long before Penny
+    # existed — so ordinary traffic is the only way we ever learn their ids, and a group we have
+    # heard from can never later be mistaken for one we just joined. Ahead of the `is_from_me`
+    # check on purpose: our own outbound message is still proof the group is old news.
+    _remember_own_jid(envelope.device_id)
+    await _observe_quietly(session, payload.chat_id)
+
     # Messages WE send come back to us with is_from_me=true and there is no filter on the GOWA
     # side. Ingesting them would attribute Penny's own outbound text to the family and feed it
     # straight back into extraction.
     if payload.is_from_me:
         return _ignored("from_me")
-
-    # (c) There is NO `is_group` field. The suffix is the entire group signal, and a direct
-    # chat is out of scope for v1 — one linked group per household.
-    if not payload.chat_id.endswith(GROUP_JID_SUFFIX):
-        return _ignored("not_a_group")
 
     if _is_mutation(payload):
         log.info("webhook.mutation_dropped", extra={"provider_message_id": payload.id})
@@ -451,22 +500,28 @@ async def gowa_webhook(
     try:
         result = await ingest_messages(session, payload.chat_id, [inbound])
     except UnknownGroupError:
-        # 200, always. Nothing about retrying an unlinked group can make it linked.
+        # STORE NOTHING. SEND NOTHING. PROVISION NOTHING. 200 and a log line.
         #
-        # THIS IS WHERE AUTO-PROVISIONING USED TO BE FORBIDDEN, and the reversal is deliberate.
-        # The old rule read "an unknown group NEVER auto-provisions a household — that is the
-        # tenant-leak vector", and against a webhook that simply created a household it was
-        # right. What makes it safe now is WHERE THE CREDENTIAL GOES: the passphrase is revealed
-        # in exactly one place, a WhatsApp message posted back INTO that group. Only members of
-        # the group can read it, so holding the credential is proof of membership — which is
-        # also the answer the security review wanted to "what stops the wrong tenant claiming a
-        # group?". Someone who forges a webhook naming a stranger's chat_id causes a household
-        # to be created whose password is delivered to the stranger's group and never to them.
-        # The original boundary is untouched: a webhook body still cannot NAME a household. It
-        # can only cause one to exist for the group the message actually came from.
-        result = await _onboard_group(session, background, payload.chat_id, inbound)
-        if result is None:
-            return _ignored("unknown_group")
+        # THIS LINE IS THE INCIDENT. What used to be here was a call to `_onboard_group`, on the
+        # theory that a credential posted back into the group is only readable by that group's
+        # members and is therefore proof of membership. The theory was sound and the premise was
+        # false: the paired number is a REAL WhatsApp account that was ALREADY a member of
+        # several unrelated group chats, so "an unknown group sent us a message" did not mean
+        # "someone just added Penny" — it meant "one of the strangers' chats this account has
+        # been sitting in for months said something". Three households, two accidental, and a
+        # login password posted into other people's conversations. A real person's words:
+        # "It sent the message to all groups i'm in at the same time."
+        #
+        # An unlinked group is now indistinguishable from noise, whatever it says and whoever it
+        # @-mentions. The ONLY way to become linked is `_handle_group_event`, i.e. an actual
+        # join. `record_unlinked_group` keeps the chat id in memory so a human can link it by
+        # hand from the settings screen — a hint on our side, not a word on theirs.
+        record_unlinked_group(payload.chat_id)
+        log.info(
+            "webhook.unlinked_group_ignored",
+            extra={"chat_id": payload.chat_id, "provider_message_id": payload.id},
+        )
+        return _ignored("unknown_group")
 
     log.info(
         "webhook.ingested",
@@ -485,7 +540,21 @@ async def gowa_webhook(
     # duplicate delivery adds no work here because `inserted` is 0 for a replay.
     if result.inserted:
         background.add_task(spawn_extraction, result.household_id, payload.id)
-    return {"status": "ok", "inserted": result.inserted}
+
+    # (f) The reply path, and the ONLY one. A linked group, a new message (not a replay), and an
+    # explicit @-mention. `inserted` is what makes a GOWA retry free: five deliveries of one
+    # mention must be one answer, not five.
+    reply = "not_mentioned"
+    if result.inserted:
+        reply = await _maybe_schedule_reply(
+            background,
+            household_id=result.household_id,
+            chat_id=payload.chat_id,
+            provider_message_id=payload.id,
+            text=text,
+            raw_payload=raw_payload,
+        )
+    return {"status": "ok", "inserted": result.inserted, "reply": reply}
 
 
 async def _handle_group_event(
@@ -493,17 +562,41 @@ async def _handle_group_event(
     session: AsyncSession,
     background: BackgroundTasks,
 ) -> dict[str, Any]:
-    """Penny was added to a group: provision the household and post the credentials.
+    """THE ONLY PATH THAT MAY EVER PROVISION OR SEND. Two gates, and both must open.
 
-    The message path's twin, minus the message — a join carries no text to ingest, so this
-    provisions and sends and nothing else. Everything else is deliberately identical, including
-    the ordering trap: `provision_for_group` does not commit, `get_session` does, and
-    `spawn_welcome` waits for the household row to be readable on a fresh connection before it
-    says a word. Committed first, credential second.
+    A `group.joined` from whatsmeow does NOT mean "you were just added to a group". It also
+    fires, once per group, during app-state sync — the burst that follows every reconnect, for
+    every group the account was ALREADY in. GOWA's own source has no guard against re-emitting
+    it, which is how one of the accidental households appeared: a container restart looked
+    exactly like being invited to eight chats at once.
 
-    Idempotency is the same guarantee too. GOWA retries five times on a non-2xx, and a join can
-    arrive alongside the first messages; whoever loses the advisory lock gets `created=False`
-    and sends nothing, so a family gets one password rather than five.
+    Nothing in the event body distinguishes the two. So the guards are circumstantial, from
+    `app.groups`, and independent:
+
+      a. `observe_group()` — is this the first time we have EVER seen this group id? A group
+         recorded by any earlier event, including an ordinary message, can never provision
+         later. This is what makes the pre-existing chats permanently safe: the ledger fills
+         from normal traffic, and a group in the ledger is old news forever.
+      b. `in_startup_quiet_period()` — is the process old enough that a sync burst is over? App
+         state lands within seconds of a connect, so a join in that window is recorded and NEVER
+         provisioned, even if it is genuine.
+
+    (b) is what covers the very first deploy, when the ledger is empty and (a) alone would wave
+    every pre-existing group through. (a) is what covers every restart after it. THE GROUP IS
+    RECORDED EITHER WAY, before either gate is consulted, so a refusal here also inoculates that
+    id against every future join event.
+
+    The cost is a genuine join in the first seconds after a deploy getting silence. That is the
+    trade being made deliberately: a missed welcome is one message a human can send by hand, and
+    a password in a stranger's chat is permanent.
+
+    Only `group.joined` reaches the gates at all. `group.participants` fires on every membership
+    change in every group Penny already sits in; it is subscribed so its chat ids reach the
+    ledger, and it provisions nothing.
+
+    Past the gates, the ordering trap is unchanged: `provision_for_group` does not commit,
+    `get_session` does, and `spawn_welcome` waits for the household row to be readable on a
+    fresh connection before it says a word. Committed first, credential second.
     """
     try:
         envelope = GowaGroupEnvelope.model_validate_json(raw)
@@ -520,8 +613,82 @@ async def _handle_group_event(
     if not payload.chat_id.endswith(GROUP_JID_SUFFIX):
         return _ignored("not_a_group")
 
-    if not _is_self_join(envelope, payload):
-        return _ignored("not_a_self_join")
+    _remember_own_jid(envelope.device_id)
+
+    # RECORD FIRST, DECIDE SECOND — and if the ledger cannot be written, decide "no". A gate we
+    # failed to consult is not a gate that passed: an exception here (a missing table on a
+    # half-run migration, a dead connection) must mean silence, not a household. Everything
+    # below reads `first_sighting`, so there is no path to `provision_for_group` that skipped it.
+    try:
+        first_sighting = await observe_group(session, payload.chat_id)
+    except Exception:
+        log.exception("webhook.group_ledger_unavailable", extra={"chat_id": payload.chat_id})
+        return _ignored("ledger_unavailable")
+
+    if envelope.event != GROUP_JOINED_EVENT:
+        # Recorded, and that is all a participants event is for.
+        log.info(
+            "webhook.group_participants_observed",
+            extra={"chat_id": payload.chat_id, "first_sighting": first_sighting},
+        )
+        return _ignored("not_a_join_event")
+
+    # GATE (b), checked first because it is free and because it is the one that holds when the
+    # ledger is empty — a fresh database plus a reconnect is the exact shape of the incident.
+    if in_startup_quiet_period():
+        log.warning(
+            "webhook.join_sync_suppressed",
+            extra={
+                "chat_id": payload.chat_id,
+                "event": envelope.event,
+                "first_sighting": first_sighting,
+                "gate": "startup_quiet_period",
+            },
+        )
+        return _ignored("sync_suppressed")
+
+    # GATE (a). `observe_group` returned False, so some earlier event already named this group:
+    # a message, a participants change, or a join we refused above. Whatever it was, we did not
+    # just meet these people.
+    if not first_sighting:
+        log.warning(
+            "webhook.join_already_known",
+            extra={"chat_id": payload.chat_id, "event": envelope.event, "gate": "already_known"},
+        )
+        return _ignored("already_known")
+
+    # GATE (c), THE CARDINALITY GATE. Gates (a) and (b) can both be open at once, and the state
+    # in which that happens is the state production is in the day this ships: an empty ledger
+    # makes every pre-existing group a first sighting, and a sync burst that lands a little late
+    # clears the quiet window. Reproduced against the code as shipped — eight joins, eight
+    # households, eight passwords. A human adds Penny to ONE group at a time, so a second group
+    # appearing inside the window means app state, not an invitation. Counted in Postgres, so it
+    # holds across both gunicorn workers; see `groups_first_seen_within`.
+    #
+    # This catches joins 2..N of a burst here, synchronously. Join 1 cannot be caught yet — it
+    # is genuinely alone at this instant — so `send_welcome` holds it for the window and asks
+    # again before it says anything. That is what makes the FIRST group of a burst safe too.
+    burst_window = join_burst_window_seconds()
+    appeared = 0
+    if burst_window > 0:
+        try:
+            appeared = await groups_first_seen_within(session, burst_window)
+        except Exception:
+            # A gate we failed to consult is not a gate that passed.
+            log.exception("webhook.join_burst_check_failed", extra={"chat_id": payload.chat_id})
+            return _ignored("ledger_unavailable")
+    if appeared > 1:
+        log.warning(
+            "webhook.join_burst_suppressed",
+            extra={
+                "chat_id": payload.chat_id,
+                "event": envelope.event,
+                "gate": "join_burst",
+                "groups_appeared": appeared,
+                "window_seconds": burst_window,
+            },
+        )
+        return _ignored("burst_suppressed")
 
     provisioned = await provision_for_group(session, payload.chat_id)
     if provisioned is None:
@@ -534,7 +701,9 @@ async def _handle_group_event(
         return _ignored("onboarding_declined")
 
     if not provisioned.created:
-        # A message from this group already provisioned it; that delivery owns the welcome.
+        # A concurrent delivery of the SAME join won the advisory lock and is sending the
+        # welcome; a household that already had a link row would not have got past gate (a).
+        # Either way there is no plaintext passphrase to send and nothing for us to do.
         log.info(
             "webhook.group_already_onboarded",
             extra={
@@ -564,95 +733,6 @@ async def _handle_group_event(
     return {"status": "ok", "onboarded": True}
 
 
-async def _onboard_group(
-    session: AsyncSession,
-    background: BackgroundTasks,
-    chat_id: str,
-    inbound: InboundMessage,
-) -> IngestResult | None:
-    """Provision a household for a group nobody has linked, then ingest the message anyway.
-
-    Returns None ONLY for "stay silent and answer 200 with no rows": onboarding is switched off,
-    or the cap is reached. That is the pre-onboarding behaviour, unchanged.
-
-    The message that introduced Penny to the group is RE-INGESTED rather than dropped. It is
-    usually the one that says why the group added her ("adding Penny so we can all keep track of
-    Mum's appointments"), and dropping it would make the first thing Penny ever sees the second
-    thing the family ever said.
-
-    PROVISIONING AND SENDING ARE TWO DECISIONS, NOT ONE. `created=False` means a concurrent
-    delivery provisioned this group microseconds ago and committed while we waited on the
-    advisory lock. It is the reason not to send a SECOND password into the family's chat — and
-    it is NOT a reason to drop this message, because the household it belongs to now exists and
-    the link is committed and visible. Treating one flag as the answer to both questions loses
-    real messages: three people typing the moment Penny joins produced one stored row and two
-    200s that discarded the text — permanently, because a 200 is exactly what stops GOWA
-    retrying. Measured, not theorised: 3 concurrent deliveries, 1 message kept.
-    """
-    provisioned = await provision_for_group(session, chat_id)
-    if provisioned is None:
-        # Exactly today's behaviour: 200, no rows, no message.
-        record_unlinked_group(chat_id)
-        log.warning("webhook.unknown_group", extra={"chat_id": chat_id, "onboarded": False})
-        return None
-
-    # FLUSH before re-ingesting. The sessionmaker sets autoflush=False, so the household and
-    # its whatsapp_links row are still pending Python objects; the seam resolves the group with
-    # a SELECT, and an unflushed INSERT is invisible to it. Without this the re-ingest would
-    # raise UnknownGroupError a second time and the message really would be dropped. (On the
-    # `created=False` path there is nothing pending and the flush is a no-op; the row it needs
-    # was committed by the delivery that won.)
-    #
-    # If the re-ingest raises anyway, it is deliberately NOT swallowed. That is the one shape of
-    # failure a retry genuinely fixes: the whole transaction rolls back, the household goes with
-    # it, nothing was sent, and GOWA's next delivery starts clean. Answering 200 here instead
-    # would leave a family with a household and no credentials and no message.
-    await session.flush()
-    result = await ingest_messages(session, chat_id, [inbound])
-
-    if not provisioned.created:
-        # Someone else's request is sending the welcome. Ours only had a message to save.
-        log.info(
-            "webhook.joined_existing_onboarding",
-            extra={
-                "chat_id": chat_id,
-                "household_id": str(provisioned.household_id),
-                "inserted": result.inserted,
-            },
-        )
-        return result
-
-    # THE ORDERING TRAP: THE HOUSEHOLD MUST BE COMMITTED BEFORE THE PASSWORD GOES OUT. Sending
-    # from inside the request would hand a family a credential for a household that a later
-    # rollback means never existed — and the failure is silent on our side and permanent on
-    # theirs, because the message cannot be unsent. So the ordering is not left to whether
-    # Starlette runs background tasks before or after `get_session`'s teardown (the two have
-    # traded places between versions — see `extract_in_background`, and on FastAPI 0.140 /
-    # Starlette 1.3.1 the commit is observably first). This task only SPAWNS, and `send_welcome`
-    # waits for the household row to be readable on a fresh connection before it says a word.
-    # Committed first, credential second, under either ordering.
-    #
-    # It is a background task at all, rather than an await here, because a send is a network
-    # call to a sidecar that can hang. Ten seconds of hanging GOWA inside the handler is a GOWA
-    # retry, and a retry is a second delivery of a message we have already stored.
-    background.add_task(
-        spawn_welcome,
-        provisioned.household_id,
-        chat_id,
-        provisioned.username,
-        provisioned.passphrase,
-    )
-    log.info(
-        "webhook.onboarded",
-        extra={
-            "chat_id": chat_id,
-            "household_id": str(provisioned.household_id),
-            "inserted": result.inserted,
-        },
-    )
-    return result
-
-
 async def spawn_welcome(household_id: UUID, chat_id: str, username: str, passphrase: str) -> None:
     """DETACH the send, for the same reason `spawn_extraction` detaches — see below.
 
@@ -676,6 +756,16 @@ async def send_welcome(household_id: UUID, chat_id: str, username: str, passphra
 
     The passphrase is in the argument list and in the message body and NOWHERE ELSE. It is never
     logged, and `gowa.send_message` logs a character count rather than the text it sent.
+
+    THE LAST THING THIS DOES BEFORE SPEAKING IS WAIT AND LOOK AGAIN. Gate (c) in
+    `_handle_group_event` can only see the groups that have appeared SO FAR, so the first join
+    of an app-state burst is indistinguishable from a real invitation at the moment it arrives —
+    it is genuinely alone until the rest of the burst lands milliseconds later. Holding the
+    welcome for the burst window and re-counting is what closes that gap, and it is the only
+    thing standing between the first group of a burst and a password.
+
+    So a genuine welcome is ~45s late. That is the entire cost, it is paid only once per family,
+    and nobody adding a bot to a group chat is waiting on a stopwatch.
     """
     try:
         if not await _await_household(household_id):
@@ -683,6 +773,8 @@ async def send_welcome(household_id: UUID, chat_id: str, username: str, passphra
                 "webhook.welcome_household_never_committed",
                 extra={"household_id": str(household_id), "chat_id": chat_id},
             )
+            return
+        if not await _was_a_solitary_join(household_id, chat_id):
             return
         message = welcome_message(username, passphrase, get_settings().app_public_url)
         result = await gowa.send_message(chat_id, message)
@@ -704,6 +796,273 @@ async def send_welcome(household_id: UUID, chat_id: str, username: str, passphra
             )
     except Exception:
         log.exception("webhook.welcome_failed", extra={"household_id": str(household_id)})
+
+
+async def _was_a_solitary_join(household_id: UUID, chat_id: str) -> bool:
+    """Wait out the burst window, then decide whether this group joined ALONE. THE LAST GATE.
+
+    Returns False — stay silent — for any answer that is not a confident yes, including a failed
+    lookup. Silence costs a support message; the alternative cost a real person a password in a
+    conversation they never invited Penny to.
+
+    The household has already been provisioned by the time this runs, so refusing here leaves an
+    orphan household nobody can log into. That is deliberate and it is the cheap half of the
+    trade: an unused row an operator can delete, against a message that cannot be unsent. It is
+    logged at ERROR with the id precisely so that clean-up is possible.
+    """
+    window = join_burst_window_seconds()
+    if window <= 0:
+        return True
+    await asyncio.sleep(window)
+    try:
+        async with get_sessionmaker()() as session:
+            # Twice the window: this group's own ledger row is now ~`window` seconds old, so a
+            # single-window lookback would have already aged it out and under-count the burst.
+            appeared = await groups_first_seen_within(session, window * 2)
+    except Exception:
+        log.exception("webhook.welcome_burst_check_failed", extra={"chat_id": chat_id})
+        return False
+    if appeared > 1:
+        log.error(
+            "webhook.welcome_burst_suppressed",
+            extra={
+                "household_id": str(household_id),
+                "chat_id": chat_id,
+                "groups_appeared": appeared,
+                "window_seconds": window,
+                "orphan_household": True,
+            },
+        )
+        return False
+    return True
+
+
+# --- the ledger ------------------------------------------------------------------------
+
+
+async def _observe_quietly(session: AsyncSession, chat_id: str) -> None:
+    """Record a group id on the MESSAGE path, where failing to record must not lose a message.
+
+    The join path deliberately does the opposite: there, an unwritable ledger means no
+    household. Here the ledger is a side effect of ingesting, and refusing an ordinary family
+    message because a bookkeeping row would not write is a real outage for no safety gain — the
+    message path cannot provision or send anything under any circumstances.
+
+    The SAVEPOINT is what makes "carry on" honest. A failed statement poisons the enclosing
+    asyncpg transaction, so without `begin_nested` a swallowed error here would turn the ingest
+    that follows into a confusing `InFailedSQLTransaction` several frames away.
+
+    Note the asymmetry it creates and why it is safe: a group whose ledger write failed is NOT
+    recorded, so a later join event would see `first_sighting=True` on it. The startup quiet
+    period is the independent gate that still stands, and a ledger that is failing writes is
+    failing loudly in the log above.
+    """
+    try:
+        async with session.begin_nested():
+            await observe_group(session, chat_id)
+    except Exception:
+        log.exception("webhook.observe_failed", extra={"chat_id": chat_id})
+
+
+# --- @-mentions ------------------------------------------------------------------------
+
+
+def _remember_own_jid(device_id: str | None) -> None:
+    """Learn the paired number from the envelope GOWA just signed. No network call.
+
+    Every event carries `device_id`, and it is the paired account's own JID. Taking it from here
+    means the common case never touches the sidecar at all, and it is authenticated by the same
+    HMAC as the rest of the body — this runs only after `verify_signature`.
+    """
+    global _own_jid, _own_jid_expires_at
+    if normalise_jid(device_id) is None:
+        return
+    _own_jid = device_id
+    _own_jid_expires_at = time.monotonic() + OWN_JID_TTL_SECONDS
+
+
+def _device_jid(device: dict[str, Any]) -> str | None:
+    """The paired phone JID from one `/devices` entry, whichever field this build puts it in."""
+    for field in _DEVICE_JID_FIELDS:
+        value = device.get(field)
+        if isinstance(value, str) and normalise_jid(value) is not None:
+            return value
+    return None
+
+
+async def resolve_own_jid() -> str | None:
+    """The paired account's JID, cached, with a hard ceiling on how long it may block.
+
+    Almost always answered from the cache that `_remember_own_jid` fills for free. The GOWA call
+    is the cold-start fallback, and it is bounded twice over — a 2.5s `wait_for` inside a 10s
+    handler budget, and a short negative cache so a dead sidecar costs that once a minute rather
+    than once a message. Failure returns None, which downgrades mention detection rather than
+    breaking ingest.
+    """
+    global _own_jid, _own_jid_expires_at
+    now = time.monotonic()
+    if _own_jid is not None and now < _own_jid_expires_at:
+        return _own_jid
+    async with _own_jid_lock:
+        # Re-check: another request may have filled it while we queued here.
+        now = time.monotonic()
+        if _own_jid is not None and now < _own_jid_expires_at:
+            return _own_jid
+        try:
+            devices, error = await asyncio.wait_for(
+                gowa.list_devices(), timeout=OWN_JID_TIMEOUT_SECONDS
+            )
+        except Exception as exc:
+            # `asyncio.TimeoutError` is `TimeoutError` is an `Exception` on 3.11+, so the timeout
+            # lands here too. `CancelledError` is a `BaseException` and deliberately does not:
+            # a cancelled request should not be recorded as a failed lookup.
+            log.warning("webhook.own_jid_lookup_failed", extra={"exc_type": type(exc).__name__})
+            devices, error = None, "exception"
+        jid = next((j for d in devices or [] if (j := _device_jid(d))), None)
+        if jid is None:
+            log.info("webhook.own_jid_unknown", extra={"error": error})
+            _own_jid, _own_jid_expires_at = None, now + OWN_JID_FAILURE_TTL_SECONDS
+            return None
+        _own_jid, _own_jid_expires_at = jid, now + OWN_JID_TTL_SECONDS
+        return jid
+
+
+def _reply_allowed(household_id: UUID) -> bool:
+    """Consume one reply slot for this household, or refuse.
+
+    Consumed at SCHEDULING time, not at send time, because the cost being capped is the LLM call
+    as much as the outbound message — a reply that turns out to be "say nothing" has still spent
+    a completion. Sliding window over `REPLY_WINDOW_SECONDS`; in process, because the cap is a
+    safety valve on a handful of households and a shared counter is not worth a second datastore
+    (the same trade `app.ratelimit` documents at length).
+
+    In-process means a multi-worker deploy allows up to `workers * MAX_REPLIES_PER_HOUSEHOLD`.
+    Two workers, four each: still single digits an hour, still far below anything that looks
+    like automation to WhatsApp.
+    """
+    now = time.monotonic()
+    hits = _reply_hits.get(household_id)
+    if hits is None:
+        if len(_reply_hits) >= _REPLY_LIMIT_MAX_KEYS:
+            _reply_hits.popitem(last=False)
+        hits = _reply_hits[household_id] = deque()
+    _reply_hits.move_to_end(household_id)
+    cutoff = now - REPLY_WINDOW_SECONDS
+    while hits and hits[0] <= cutoff:
+        hits.popleft()
+    if len(hits) >= MAX_REPLIES_PER_HOUSEHOLD:
+        return False
+    hits.append(now)
+    return True
+
+
+async def _maybe_schedule_reply(
+    background: BackgroundTasks,
+    *,
+    household_id: UUID,
+    chat_id: str,
+    provider_message_id: str,
+    text: str | None,
+    raw_payload: dict[str, Any],
+) -> str:
+    """Decide whether this message earns an answer. Returns the reason, for the response body.
+
+    Reached ONLY for a linked group and a newly inserted message — see the call site. The
+    ordering is cheapest-first and that is not a micro-optimisation: `has_mention_marker` is pure
+    string work and rejects every message without an `@`, which is nearly all of them, so
+    `resolve_own_jid` is never reached on the hot path and the sidecar is never consulted for
+    ordinary family chat.
+
+    Nothing here calls the LLM or GOWA. It hands off to `BackgroundTasks`, because the handler
+    owes GOWA a 200 well inside 10 seconds and an LLM call is seconds to minutes; blowing that
+    budget means a retry, and a retry means the family gets the same answer twice.
+    """
+    if not has_mention_marker(text, raw_payload):
+        return "not_mentioned"
+    if not mentions_penny(text, raw_payload, await resolve_own_jid()):
+        return "not_mentioned"
+    if not _reply_allowed(household_id):
+        # Silence, not an apology: an "I'm rate limited" message is itself an outbound message.
+        log.warning(
+            "webhook.reply_rate_limited",
+            extra={
+                "household_id": str(household_id),
+                "chat_id": chat_id,
+                "limit": MAX_REPLIES_PER_HOUSEHOLD,
+                "window_seconds": REPLY_WINDOW_SECONDS,
+            },
+        )
+        return "rate_limited"
+    log.info(
+        "webhook.reply_scheduled",
+        extra={
+            "household_id": str(household_id),
+            "chat_id": chat_id,
+            "provider_message_id": provider_message_id,
+        },
+    )
+    background.add_task(spawn_reply, household_id, chat_id, provider_message_id, text or "")
+    return "scheduled"
+
+
+async def spawn_reply(
+    household_id: UUID,
+    chat_id: str,
+    provider_message_id: str,
+    text: str,
+) -> None:
+    """DETACH the reply, for the same reason `spawn_welcome` detaches — see there."""
+    task = asyncio.create_task(send_reply(household_id, chat_id, provider_message_id, text))
+    _RUNNING.add(task)
+    task.add_done_callback(_RUNNING.discard)
+
+
+async def send_reply(
+    household_id: UUID,
+    chat_id: str,
+    provider_message_id: str,
+    text: str,
+) -> None:
+    """Answer an @-mention in the group it came from. NOTHING ESCAPES.
+
+    Waits for the request to commit first, exactly as extraction does: the assistant reads the
+    household's own record to answer, and a connection opened before the request committed
+    cannot see the message being asked about — nor, on a first-message group, the household.
+
+    `chat_id` is passed down from the delivery that triggered this and is never derived from the
+    household, so there is no path by which an answer for one group is delivered to another. The
+    household was resolved from that same chat_id by the ingest seam.
+    """
+    try:
+        if not await _await_commit(household_id, provider_message_id):
+            log.warning("webhook.reply_message_never_committed", extra={"chat_id": chat_id})
+            return
+        async with get_sessionmaker()() as session:
+            household = await session.get(Household, household_id)
+            if household is None:
+                log.warning(
+                    "webhook.reply_household_missing",
+                    extra={"household_id": str(household_id)},
+                )
+                return
+            answer = await answer_mention(session, household, text)
+        if not answer:
+            # "Nothing to say" is a first-class outcome — no OpenAI key, nothing relevant, an
+            # answer the assistant declined to give. Saying nothing is always allowed.
+            log.info("webhook.reply_declined", extra={"household_id": str(household_id)})
+            return
+        result = await gowa.send_message(chat_id, answer)
+        log.info(
+            "webhook.reply_sent" if result.ok else "webhook.reply_send_failed",
+            extra={
+                "household_id": str(household_id),
+                "chat_id": chat_id,
+                "char_count": len(answer),
+                "error": result.error,
+            },
+        )
+    except Exception:
+        log.exception("webhook.reply_failed", extra={"household_id": str(household_id)})
 
 
 async def spawn_extraction(household_id: UUID, provider_message_id: str) -> None:

@@ -21,6 +21,28 @@ a table is not. TRY, not the blocking form: a second run has nothing to add, so 
 THE SPEND CEILING ABORTS MID-FLIGHT, ON PURPOSE. The runner stops adding chunk ids to
 `extracted_message_ids`, those messages keep `extracted_at IS NULL`, and the next run picks up
 exactly where this one stopped. Resumability is a consequence of the cursor, not a mechanism.
+
+WHY THE CADENCE GATE IS HERE AND NOT AT THE CALL SITES
+
+Extraction is billed per CALL. Roughly 1,400 tokens of system prompt, care brief and
+`<open_events>` ride along with every request no matter how little conversation is in it, so a
+run over five messages pays that fixed tax thirteen times over. Production measured 13 runs for
+14 messages — one per message — at $0.00763/message against a planned $0.00042. 18x. A normal
+family at 120 messages/day would spend $27/month and trip a $15 budget on day 16.
+
+The fix is to wait for a batch: `extract_min_unextracted` messages, OR an oldest waiting message
+older than `extract_max_age_hours`. That gate sits in `run_extraction_for_household`, below
+the advisory lock, because putting it at a call site means the NEXT call site does not have it —
+and the cost of forgetting is a bill, discovered a month late. Callers that must not wait pass
+`force=True`.
+
+THE AGE HALF OF THE GATE NEEDS SOMETHING TO FIRE IT. Both halves are evaluated when a caller
+arrives, so on a chatty group the age trigger fires on the next inbound message. On a group that
+has gone quiet there is no next message, and the last few messages of the conversation would sit
+unextracted forever. `households_due_for_extraction` is the query the hourly
+`POST /api/internal/tick` is meant to run to close that hole. THAT ENDPOINT DOES NOT EXIST YET
+(documented in `docs/api-contract.md`, no router implements it); until it does, a quiet group's
+tail waits for its next message.
 """
 
 from __future__ import annotations
@@ -70,6 +92,14 @@ class RunSummary:
 
     household_id: UUID
     ran: bool
+    # The cadence gate said "not enough yet". Also `ran=False`, but a DIFFERENT thing from
+    # losing the lock: a lock loss means someone else is extracting these messages right now,
+    # a deferral means nobody is and nobody will until more arrive or the tick comes round.
+    # A caller that must not wait (the import flow) distinguishes them by this flag.
+    deferred: bool = False
+    # The unextracted backlog this call saw, whether or not it extracted any of it. This is
+    # the number the gate compared against `extract_min_unextracted`.
+    messages_pending: int = 0
     messages_considered: int = 0
     events_inserted: int = 0
     events_updated: int = 0
@@ -90,8 +120,15 @@ async def run_extraction_for_household(
     household_id: UUID,
     *,
     max_spend_usd: Decimal | None = None,
+    force: bool = False,
 ) -> RunSummary:
-    """Extract everything not yet extracted for one household. Never commits — see `app.db`."""
+    """Extract everything not yet extracted for one household. Never commits — see `app.db`.
+
+    `force=True` skips the cadence gate and extracts whatever is waiting. It exists for the
+    `.txt` import: a family that has just uploaded a file is watching a progress bar, and a
+    correct-but-silent six-hour wait is indistinguishable from the product being broken.
+    Nothing that runs off an inbound message should pass it.
+    """
     if not await _acquire(session, household_id):
         log.info("extraction already running household=%s", household_id)
         return RunSummary(household_id=household_id, ran=False)
@@ -100,10 +137,31 @@ async def run_extraction_for_household(
     if household is None:
         return RunSummary(household_id=household_id, ran=False)
 
+    # Stamping system lines happens BEFORE the gate, deliberately. It is a plain UPDATE that
+    # sends nothing to a model and costs nothing, and the import progress bar is
+    # `extracted_count / inserted_count` — hold it back behind the gate and an import whose
+    # remainder is join notices sits at 97% for six hours.
     inert = await _stamp_inert(session, household_id)
     pending = await _unextracted(session, household_id)
     if not pending:
         return RunSummary(household_id=household_id, ran=True, messages_stamped=inert)
+
+    decision = cadence_decision(pending, force=force)
+    if not decision.extract:
+        log.info(
+            "extraction deferred household=%s pending=%d oldest_age_h=%.2f reason=%s",
+            household_id,
+            decision.pending,
+            decision.oldest_age.total_seconds() / 3600,
+            decision.reason,
+        )
+        return RunSummary(
+            household_id=household_id,
+            ran=False,
+            deferred=True,
+            messages_pending=decision.pending,
+            messages_stamped=inert,
+        )
 
     tz = ZoneInfo(household.timezone)
     recorder = DbRunRecorder(session, household_id)
@@ -128,6 +186,7 @@ async def run_extraction_for_household(
     return RunSummary(
         household_id=household_id,
         ran=True,
+        messages_pending=len(pending),
         messages_considered=len(pending),
         events_inserted=persisted.inserted,
         events_updated=persisted.updated,
@@ -166,6 +225,84 @@ async def build_care_brief(session: AsyncSession, household: Household) -> str:
         f"People in this chat: {people}.\n"
         f"Household timezone: {household.timezone}."
     )
+
+
+# --- the cadence gate -----------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class CadenceDecision:
+    """Why this call is or is not about to spend money. Pure; the numbers it read are on it."""
+
+    extract: bool
+    reason: str
+    pending: int
+    oldest_age: timedelta
+
+
+def cadence_decision(
+    pending: list[ChunkMessage], *, force: bool = False, now: datetime | None = None
+) -> CadenceDecision:
+    """Batch or wait. `pending` is the unextracted set, oldest first — see `_unextracted`.
+
+    Two triggers, OR-ed, and they cover different failures. The COUNT trigger is the one that
+    saves the money: it holds a conversation back until there is enough of it to be worth the
+    fixed prompt overhead. The AGE trigger is the one that stops the count trigger from
+    swallowing a family's evening — thirty messages about tomorrow's hospital transport must
+    not sit invisible because they never reached forty.
+
+    Age is measured from `sent_at`, not from row insertion. That is what makes a `.txt` import
+    of a real chat history trip the gate on its own: those messages are months old the moment
+    they land, and a family who uploads an export is owed their feed, not a batching policy
+    designed for a live group. `force=True` is still how the import flow says so explicitly.
+    """
+    settings = get_settings()
+    now = now or datetime.now(UTC)
+    count = len(pending)
+    # `_unextracted` orders by sent_at, so element zero is the oldest thing waiting. A message
+    # dated in the future (clock skew on a phone) yields a negative age and simply does not
+    # trip the age trigger, which is the safe direction.
+    oldest_age = now - pending[0].sent_at
+
+    if force:
+        return CadenceDecision(True, "forced", count, oldest_age)
+    if count >= settings.extract_min_unextracted:
+        return CadenceDecision(True, "count", count, oldest_age)
+    if oldest_age > timedelta(hours=settings.extract_max_age_hours):
+        return CadenceDecision(True, "age", count, oldest_age)
+    return CadenceDecision(False, "waiting", count, oldest_age)
+
+
+async def households_due_for_extraction(session: AsyncSession) -> list[UUID]:
+    """Households the cadence gate would let through right now. The hourly tick's work list.
+
+    NOTHING CALLS THIS YET. `POST /api/internal/tick` is specified in `docs/api-contract.md`
+    and is not implemented, so the age trigger currently only fires when a household receives
+    another message. This query is the whole of the tick's decision; the endpoint that runs it
+    is a loop over these ids, each in its own session and its own transaction, because one
+    household's failure must not roll back the rest.
+
+    The same two thresholds as `cadence_decision`, evaluated in Postgres over every household
+    at once. System messages are excluded on both sides so they can neither reach the count
+    threshold nor keep a household on this list forever — they are stamped by `_stamp_inert`,
+    which only runs once something else brings the household through.
+    """
+    settings = get_settings()
+    cutoff = datetime.now(UTC) - timedelta(hours=settings.extract_max_age_hours)
+    rows = (
+        await session.execute(
+            sa.select(Message.household_id)
+            .where(Message.extracted_at.is_(None), Message.message_type != "system")
+            .group_by(Message.household_id)
+            .having(
+                sa.or_(
+                    sa.func.count() >= settings.extract_min_unextracted,
+                    sa.func.min(Message.sent_at) < cutoff,
+                )
+            )
+        )
+    ).all()
+    return [row.household_id for row in rows]
 
 
 # --- the lock -------------------------------------------------------------------------

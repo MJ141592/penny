@@ -1,13 +1,18 @@
 """Penny is added to a group; a household appears and the credentials go back into the group.
 
-These run against REAL Postgres and skip without `PENNY_TEST_DATABASE_URL`, because the two
-things worth proving here only exist in the database. The first is that the whole path works at
-all — signature, provisioning, the link row, the message that introduced Penny, and a welcome
-message carrying credentials that genuinely open the account. The second is idempotency, and it
-is the one that would rot silently: GOWA retries five times with exponential backoff on any
-non-2xx, so the difference between "one household" and "five households, five passwords, five
-welcome messages in the family's chat on day one" is invisible in a single-delivery test and
-catastrophic in production.
+**The trigger is a `group.joined` event and nothing else.** This file used to prove the opposite
+— that a message from an unknown group provisions a household — and that behaviour caused an
+incident: the paired number was already a member of several unrelated group chats, so ordinary
+traffic from strangers' conversations minted households and posted login passwords into them.
+The tests that asserted it are gone, replaced by their join-path equivalents, and the two gates
+that now stand in front of provisioning have a file of their own: `test_join_safety.py`.
+
+What stays here is everything about a join that is still true and would still rot silently. The
+whole path works at all — signature, provisioning, the link row, and a welcome message carrying
+credentials that genuinely open the account. And idempotency: GOWA retries five times with
+exponential backoff on any non-2xx, so the difference between "one household" and "five
+households, five passwords, five welcome messages in the family's chat on day one" is invisible
+in a single-delivery test and catastrophic in production.
 
 The sidecar is a stub (`gowa.send_message` is monkeypatched) and so is extraction, so nothing
 here makes a network call. Everything else is the real handler.
@@ -129,6 +134,23 @@ def payload(chat_id: str, message_id: str, text: str) -> dict[str, Any]:
     }
 
 
+OWN_JID = "447473209317@s.whatsapp.net"
+
+
+def join_body(chat_id: str) -> dict[str, Any]:
+    """A `group.joined`, the ONLY event that can provision. Shape read from GOWA's own source."""
+    return {
+        "event": "group.joined",
+        "device_id": OWN_JID,
+        "payload": {
+            "chat_id": chat_id,
+            "type": "join",
+            "jids": [OWN_JID],
+            "group_name": "Mum's care",
+        },
+    }
+
+
 def post_webhook(client: TestClient, body: dict[str, Any], secret: str = SECRET) -> Any:
     """Sign the EXACT bytes we send — that is what the handler verifies."""
     raw = json.dumps(body).encode()
@@ -172,6 +194,19 @@ def no_llm(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(webhooks, "run_extraction_for_household", fake_extraction)
 
 
+@pytest.fixture(autouse=True)
+def joined_long_ago(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Open the startup gate for every test in this file.
+
+    `in_startup_quiet_period()` is a function of how long THIS PROCESS has been alive, and a test
+    process is always young — so left alone it would suppress every join here and the file would
+    pass while proving nothing. The gate itself is tested in `test_join_safety.py`; here it is an
+    input, set to "the app has been up for a while", which is the state production is in
+    99.99% of the time.
+    """
+    monkeypatch.setattr(webhooks, "in_startup_quiet_period", lambda: False)
+
+
 @pytest.fixture
 def make_client(
     db_url: str,
@@ -201,6 +236,11 @@ def make_client(
                 # The cap counts every household in the database, including whatever a
                 # developer already had. This is a test of onboarding, not of the cap.
                 "onboarding_max_households": 100_000,
+                # Gate (c), the burst guard, OFF here. These tests are about provisioning and
+                # the GOWA contract, and they create groups back to back — which is a sync
+                # burst as far as that gate is concerned, and it would (correctly) refuse them
+                # all. Its own tests live in `test_join_safety.py` and switch it back on.
+                "join_burst_window_seconds": 0.0,
                 **overrides,
             }
         )
@@ -224,7 +264,7 @@ def make_client(
 # --- the feature ------------------------------------------------------------------------
 
 
-def test_an_unknown_group_is_onboarded_and_the_message_that_added_penny_is_kept(
+def test_a_genuine_join_provisions_a_household_and_posts_working_credentials(
     db_url: str,
     chat_id: str,
     make_client: Callable[..., TestClient],
@@ -237,12 +277,10 @@ def test_an_unknown_group_is_onboarded_and_the_message_that_added_penny_is_kept(
     indistinguishable from a broken product.
     """
     client = make_client()
-    response = post_webhook(
-        client, payload(chat_id, "3EB0ONBOARD01", "adding Penny to keep track of Mum")
-    )
+    response = post_webhook(client, join_body(chat_id))
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "inserted": 1}
+    assert response.json() == {"status": "ok", "onboarded": True}
 
     household_ids = households_for(db_url, chat_id)
     assert len(household_ids) == 1
@@ -261,11 +299,9 @@ def test_an_unknown_group_is_onboarded_and_the_message_that_added_penny_is_kept(
     # The placeholder IS the first-run-setup signal; nobody has said who is being cared for.
     assert household.care_recipient_name == "your family member"
 
-    # The triggering message is RE-INGESTED, not dropped.
-    stored = messages_for(db_url, household_id)
-    assert len(stored) == 1
-    assert stored[0].provider_message_id == "3EB0ONBOARD01"
-    assert stored[0].text == "adding Penny to keep track of Mum"
+    # A join carries no text, so there is nothing to ingest. The first thing in the timeline is
+    # whatever the family says next, which the welcome message explicitly asks them for.
+    assert messages_for(db_url, household_id) == []
 
     assert wait_for(lambda: len(sends) == 1), "the welcome message was never sent"
     sent_chat, sent_text = sends[0]
@@ -286,7 +322,7 @@ def test_an_unknown_group_is_onboarded_and_the_message_that_added_penny_is_kept(
     assert login.status_code == 204, "the credentials we sent the family must actually work"
 
 
-def test_five_deliveries_of_one_message_make_one_household_and_one_welcome(
+def test_five_deliveries_of_one_join_make_one_household_and_one_welcome(
     db_url: str,
     chat_id: str,
     make_client: Callable[..., TestClient],
@@ -296,24 +332,21 @@ def test_five_deliveries_of_one_message_make_one_household_and_one_welcome(
 
     Five households would mean five passwords posted into one family's group; five welcome
     messages would mean four of them opening accounts nobody uses. Nothing in a single-delivery
-    test can see either. The guarantee is three-deep — the advisory lock, the unique index on
-    `whatsapp_links.group_external_id`, and `created=False` meaning "send nothing" — so this
-    asserts the outcome rather than any one mechanism.
+    test can see either. The guarantee is now four-deep — the ledger's first-sighting gate, the
+    advisory lock, the unique index on `whatsapp_links.group_external_id`, and `created=False`
+    meaning "send nothing" — so this asserts the outcome rather than any one mechanism.
     """
     client = make_client()
-    body = payload(chat_id, "3EB0REPLAY99", "Mum's GP rang, appointment moved to Thursday")
+    body = join_body(chat_id)
 
     responses = [post_webhook(client, body) for _ in range(5)]
 
     assert [r.status_code for r in responses] == [200] * 5
-    assert responses[0].json() == {"status": "ok", "inserted": 1}
-    # Replays insert nothing. They are the expected case, not an error.
-    assert all(r.json() == {"status": "ok", "inserted": 0} for r in responses[1:])
+    assert responses[0].json() == {"status": "ok", "onboarded": True}
+    # Replays are refused by the ledger. They are the expected case, not an error.
+    assert all(r.json() == {"status": "ignored", "reason": "already_known"} for r in responses[1:])
 
-    household_ids = households_for(db_url, chat_id)
-    assert len(household_ids) == 1
-
-    assert len(messages_for(db_url, household_ids[0])) == 1
+    assert len(households_for(db_url, chat_id)) == 1
 
     assert wait_for(lambda: len(sends) >= 1)
     # Give any second send time to be wrong before declaring there is only one.
@@ -321,46 +354,29 @@ def test_five_deliveries_of_one_message_make_one_household_and_one_welcome(
     assert len(sends) == 1, "a replay must never post a second password into the group"
 
 
-def test_concurrent_first_messages_are_all_kept_and_still_produce_one_welcome(
+def test_concurrent_deliveries_of_one_join_still_produce_one_welcome(
     db_url: str,
     chat_id: str,
     make_client: Callable[..., TestClient],
     sends: list[tuple[str, str]],
 ) -> None:
-    """THE OTHER INVARIANT THAT ROTS SILENTLY, and the one that used to be wrong.
+    """The ledger is a database row, so two simultaneous deliveries can both read "unseen".
 
-    The replay test above is five copies of ONE message. This is the realistic shape: Penny is
-    added and three people type at once, so three DIFFERENT messages arrive on a group that has
-    no household yet. Exactly one delivery provisions; the other two find `created=False`
-    because they waited on the advisory lock.
-
-    `created=False` is a reason not to send a SECOND password into the family's chat. It is not
-    a reason to drop the message — the household exists and is committed by then. It was
-    treated as both, and two of the three messages were discarded with a 200, which is the one
-    answer that guarantees GOWA never retries them. Nothing in the replay test can see it: five
-    copies of one message dedup to one row whether the extra deliveries stored anything or not.
-
-    So this asserts BOTH halves at once, because a fix to either one alone is wrong.
+    Retries with backoff are sequential and the first-sighting gate alone answers them. This is
+    the other shape: GOWA delivering the same join twice at once, or two workers picking up one
+    each. The gate cannot separate them, so `provision_for_group`'s advisory lock and the unique
+    index on `group_external_id` are what must — and exactly one delivery may hold plaintext to
+    send. Asserted on the outcome, because which layer catches it is an implementation detail.
     """
     client = make_client()
-    bodies = [
-        payload(chat_id, "3EB0RACE00001", "adding Penny"),
-        payload(chat_id, "3EB0RACE00002", "Mum has a GP appointment on Thursday"),
-        payload(chat_id, "3EB0RACE00003", "and her new tablets started on Monday"),
-    ]
+    body = join_body(chat_id)
 
-    with ThreadPoolExecutor(max_workers=len(bodies)) as pool:
-        responses = list(pool.map(lambda body: post_webhook(client, body), bodies))
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        responses = list(pool.map(lambda _: post_webhook(client, body), range(3)))
 
-    assert [r.status_code for r in responses] == [200] * len(bodies)
-
-    household_ids = households_for(db_url, chat_id)
-    assert len(household_ids) == 1, "concurrent deliveries must still make exactly one household"
-
-    stored = {m.provider_message_id for m in messages_for(db_url, household_ids[0])}
-    assert stored == {"3EB0RACE00001", "3EB0RACE00002", "3EB0RACE00003"}, (
-        "a message that lost the provisioning race is still a message the family sent; "
-        "answering 200 and dropping it loses it permanently"
+    assert [r.status_code for r in responses] == [200] * 3
+    assert len(households_for(db_url, chat_id)) == 1, (
+        "concurrent deliveries of one join must still make exactly one household"
     )
 
     assert wait_for(lambda: len(sends) >= 1)
@@ -384,26 +400,25 @@ def test_a_dead_sidecar_still_leaves_the_family_with_a_household(
     monkeypatch.setattr(gowa, "send_message", exploding_send)
 
     client = make_client()
-    response = post_webhook(client, payload(chat_id, "3EB0NOGOWA01", "hello?"))
+    response = post_webhook(client, join_body(chat_id))
 
     assert response.status_code == 200
     assert len(households_for(db_url, chat_id)) == 1
     assert wait_for(lambda: len(attempts) == 1)
-    assert len(messages_for(db_url, households_for(db_url, chat_id)[0])) == 1
 
 
-def test_onboarding_disabled_is_exactly_the_old_behaviour(
+def test_onboarding_disabled_provisions_nothing_even_for_a_genuine_join(
     db_url: str,
     chat_id: str,
     make_client: Callable[..., TestClient],
     sends: list[tuple[str, str]],
 ) -> None:
-    """The kill switch: 200, no rows, no message — what an unknown group used to get."""
+    """The kill switch, and the state production was left in after the incident."""
     client = make_client(onboarding_enabled=False)
-    response = post_webhook(client, payload(chat_id, "3EB0DISABLED", "hello"))
+    response = post_webhook(client, join_body(chat_id))
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ignored", "reason": "unknown_group"}
+    assert response.json() == {"status": "ignored", "reason": "onboarding_declined"}
     assert households_for(db_url, chat_id) == []
     time.sleep(0.5)
     assert sends == []
@@ -417,10 +432,10 @@ def test_the_cap_refuses_silently_rather_than_provisioning(
 ) -> None:
     """The blast radius of open onboarding is the OpenAI bill. 0 is a cap every database hits."""
     client = make_client(onboarding_max_households=0)
-    response = post_webhook(client, payload(chat_id, "3EB0CAPPED01", "hello"))
+    response = post_webhook(client, join_body(chat_id))
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ignored", "reason": "unknown_group"}
+    assert response.json() == {"status": "ignored", "reason": "onboarding_declined"}
     assert households_for(db_url, chat_id) == []
     time.sleep(0.5)
     assert sends == []
@@ -434,24 +449,27 @@ def test_provisioning_never_happens_before_the_guards_that_precede_it(
 ) -> None:
     """ORDERING, asserted end to end. Every one of these is upstream of provisioning.
 
-    A bad signature must not reach the parser, let alone the database. Penny's own outbound
-    messages come back with `is_from_me` and would otherwise onboard the group she just
-    welcomed. A direct chat has no `@g.us` and is out of scope entirely — provisioning one
-    would create a household for a single person who messaged the number by mistake.
+    A bad signature must not reach the parser, let alone the database. A direct chat has no
+    `@g.us` and is out of scope entirely. And a MESSAGE — from Penny or from anyone else — can
+    no longer provision anything at all, which is the guard the incident was missing.
     """
     client = make_client()
 
-    forged = post_webhook(
-        client, payload(chat_id, "3EB0FORGED001", "hello"), secret="not-the-secret"
-    )
+    forged = post_webhook(client, join_body(chat_id), secret="not-the-secret")
     assert forged.status_code == 401
+
+    direct = join_body("447700900123@s.whatsapp.net")
+    assert post_webhook(client, direct).json() == {"status": "ignored", "reason": "not_a_group"}
+
+    ordinary = payload(chat_id, "3EB0MESSAGE01", "adding Penny to keep track of Mum")
+    assert post_webhook(client, ordinary).json() == {
+        "status": "ignored",
+        "reason": "unknown_group",
+    }
 
     echo = payload(chat_id, "3EB0FROMME001", "welcome message coming back at us")
     echo["payload"]["is_from_me"] = True
     assert post_webhook(client, echo).json() == {"status": "ignored", "reason": "from_me"}
-
-    direct = payload("447700900123@s.whatsapp.net", "3EB0DIRECT001", "hello")
-    assert post_webhook(client, direct).json() == {"status": "ignored", "reason": "not_a_group"}
 
     assert households_for(db_url, chat_id) == []
     time.sleep(0.5)

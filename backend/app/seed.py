@@ -34,32 +34,154 @@ from app.db import dispose_engine, get_sessionmaker
 from app.models import Household
 from app.security import hash_password
 
-# Short, unambiguous, no homophones or near-homophones to mistype when read down a phone.
+# THE SIZE OF THIS LIST IS THE PASSWORD STRENGTH, so treat it as a security parameter and not
+# as decoration. A passphrase is FOUR words drawn from it (`PASSPHRASE_WORDS`), which is 41.4
+# bits: log2(1296) = 10.34 bits a word, 1296^4 = 2.8e12 combinations. Against the login rate
+# limit (10 attempts / 15 minutes) that is ~8 billion years of guessing, so the online attack
+# this actually faces is not a threat; the offline one is argon2's problem, not the list's.
+#
+# It used to be six words plus two digits from a 236-word list. Four words is what a family can
+# retype from a phone, and dropping the digits was the same call — but four words of 236 is only
+# 31.5 bits, which is thin. The strength was bought back by GROWING THE LIST rather than by
+# adding characters people get wrong: 236 -> 1296 words is +2.5 bits a word, and four words of
+# 1296 beats six words of 236 while being a third shorter to type.
+#
+# EFF-style selection rules, all of which are load-bearing:
+#   * 3-8 letters, lowercase a-z only, so it types on a phone keyboard with no modifier keys
+#   * no homophones or near-homophones (no beech/beach, cellar/seller, chord/cord) — the
+#     credential gets read down a phone to a relative who is not in the group
+#   * no US/UK spelling splits (no harbour/harbor, yogurt/yoghurt, mollusk/mollusc)
+#   * no silent-letter or commonly-misspelled words (no wren, knapsack, rhythm, yacht)
+#   * nothing that reads badly beside an elderly relative's name in a chat they can all see:
+#     no symptoms (dizzy), no falls (tumble, shuffle), no funeral flowers (lily, wreath), no
+#     words that land as an insult next to someone's name (ancient, shrew, jumbo)
+# Adding words only ever helps. REMOVING them weakens every password issued afterwards, which
+# is why the count is asserted at import below rather than trusted to review.
 _WORDS_RAW = (
-    "amber anchor apple arrow autumn basil beacon birch bishop bramble breeze bridge butter"
-    " cactus candle canvas cedar cello cinder cobalt comet copper coral cotton crimson crystal"
-    " damson daisy dapple delta denim dexter diesel dinner dollar domino donkey dragon drift"
-    " eagle ember emerald engine escape ethos exodus fabric falcon fennel ferry fiddle figure"
-    " filter flannel flint forest fossil fountain garnet gecko ginger glacier glimmer granite"
-    " gravel guitar hammer harbour hazel heather helix hollow honey hunter indigo ingot ivory"
-    " jackal jasmine jersey jigsaw jungle juniper kestrel kettle kindle lantern lattice lemon"
-    " lichen lilac linen lobster locket lumber magnet mango maple marble marrow meadow mellow"
-    " mercury minnow mirror mitten monsoon mortar mosaic muffin mulberry mustard nectar nickel"
-    " nimbus nomad nutmeg oatmeal ocean olive onyx opal orbit orchid osprey otter oxide oyster"
-    " paddle pantry parcel parsnip pebble pelican pepper pewter pigeon pilot pincer pistol"
-    " pocket pollen poplar portal possum powder prairie pretzel prism pudding pumpkin puzzle"
-    " quarry quartz quiver radish rafter rally rapid rattle raven ribbon rocket rooster rubble"
-    " ruby saddle saffron sailor salmon sandal sapphire satchel scarlet scooter shadow shovel"
-    " signal silver siren sketch slate sleigh snorkel socket sorrel spiral sprout stable"
-    " stencil sterling stirrup summit sundial sunset syrup tandem tangle tapestry teapot"
-    " tempo tender thicket thimble thistle thunder timber tinder toffee token topaz torrent"
-    " tractor trellis trumpet tulip tundra turnip tusk umber ushering valley vanilla velvet"
-    " vessel violet vulture walnut wander whistle willow window winter wombat yarrow yonder"
+    "abbey acacia acorn acrobat active adder agate agile airplane airport airship alcove alder "
+    "alert alley almond alpaca alphabet amber amble amethyst ample anagram anchor anchovy "
+    "anecdote anorak antelope anthem antler anvil aphid applaud applause apple apricot apron "
+    "aqua aqueduct arcade archway arctic armchair arrow aspen asteroid atlas atoll atom atrium "
+    "attic auburn aurora autumn avenue avocado award awning axis axle azure backpack badge "
+    "badger bagel bakery balcony ballad ballet balloon bamboo banana bandana banister banjo "
+    "banner bargain barge barley barn barnacle barrel basalt basil basin basket bassoon bathtub "
+    "bazaar beacon beagle beanbag beanie beaver bedside beehive beetle beetroot beige bench "
+    "bicycle biplane birch biscuit bison blanket blazer blender blizzard blossom bluebell "
+    "bluebird boat bobcat bold bolt bonfire bonnet bookcase bookmark bookshop boot bottle "
+    "boulder bounce bouquet bowl bracelet bracken bracket bramble branch brave breeze breezy "
+    "bridge bright brisk bristle bronze brooch brook broom brownie brush bubble bubbly bucket "
+    "buckle buffalo buggy bugle bulb bulldog bulletin bullfrog bundle bunker bunting butter "
+    "button cabbage cabin cabinet cable cactus calendar calico calm camel camera campfire "
+    "campus canal canary candle candy canister canoe canvas canyon caramel caravan carbon "
+    "cardigan cardinal caribou carnival carpet carriage cartoon cascade cashew castle cauldron "
+    "causeway cavern cedar celery cello ceramic chair chalk channel chapel chapter charcoal "
+    "chariot charm chatter cheddar cheer cheerful cheese cheetah cherry chestnut chickpea chime "
+    "chipmunk chirpy chisel chive chorus chowder chrome chuckle cicada cider cilantro cinema "
+    "cinnamon circus civic clam clarinet classic clatter clever cliff climb clipper cloak "
+    "closet cloud clover cluster coaster cobalt cobra cobweb cockatoo cockle cocoa coconut "
+    "cocoon coffee collar college comet compass concerto condor confetti conifer convoy "
+    "cookbook cookie copper corduroy cork corridor cosmic cosmos costume cottage cotton couch "
+    "cougar cove coyote crab crafty crane crater crayon crescent cricket crimson crisp crumb "
+    "crumpet crystal cuckoo cucumber cuddle cufflink cupboard cupcake curly curtain curved "
+    "cushion custard custom cutlery daffodil dahlia dainty daisy damson dance daring daybreak "
+    "daydream daylight deep delta denim diamond diary dinghy dingo dockyard dogwood dolphin "
+    "dome donkey doodle dozen drawer dream dreamy dresser drift drill drizzle drum drumbeat "
+    "duckling dumpling dune dusk dustpan dusty eager eagle early earring earthy earwig easel "
+    "echo eclipse eggplant egret elegant elephant embers emblem emerald endive engine envelope "
+    "equator eraser errand essay estuary etching even exotic explore fable fabric falcon fancy "
+    "fanfare fearless feather fedora fennel fern ferret ferry festival festive fiddle fiery "
+    "fiesta finch firefly firework fjord flagpole flagship flamingo flannel flask fleece flint "
+    "flounder flourish fluffy flurry flute flutter foam folder folklore fond forest fortress "
+    "fortune fossil foxglove foyer freckle freight fresco frigate frolic frost frosty funnel "
+    "furnace gadget galaxy galleon gallery garage garden gardenia garland garlic garnet gasket "
+    "gateway gather gazebo gazelle gecko gemstone gentle geranium gerbil gesture geyser gibbon "
+    "giddy gift giggle ginger gingham ginkgo giraffe glacier glad glade gleeful glide glimmer "
+    "glimpse glitter glossy glove glowworm goblet goggles golden gondola goose gopher gorge "
+    "gorse graceful granary grand grandeur granite granola grape grassy gravel gravity gravy "
+    "greeting grotto grouse grove guava guitar gulf gully gumdrop guppy gypsum halibut hallway "
+    "hammer hammock hamster handbook handy happy harmony harp harvest hawk hawthorn hazel "
+    "hazelnut hearth hearty heather hedgehog helium heron herring hibiscus highland hillside "
+    "hinge hippo hobby hoist holiday holly homemade honest honey honeydew hook horizon hornet "
+    "hostel humble hyacinth ibex iceberg idea igloo iguana impala indigo island ivory jackal "
+    "jackdaw jacket jade jaguar jamboree jasmine jelly jersey jetty jigsaw jog jolly journal "
+    "joyful jubilee jug juice jumble jungle juniper kale kayak keen keepsake kestrel ketchup "
+    "kettle keyboard kimono kindly kindness kitchen kite kitten kiwi koala ladder ladybug "
+    "lagoon lake landmark lantern larch lark latte lattice laughter launch laurel lava lavender "
+    "leafy leap leather ledger lemon lemonade lemur lentil leopard lesson letter lettuce lever "
+    "library lichen lifeboat lilac lime limerick linden linen lively lizard llama lobby lobster "
+    "locker locket locust lodge lofty lookout lotus loyal lucky luggage lullaby lunar lyric "
+    "macaw mackerel magenta magic magnet magnolia magpie mahogany mailbox mallard mallet "
+    "manatee mandolin mango mangrove manor mansion manta mantis maple maraca marathon marble "
+    "marigold marker market marlin marmot maroon marsh martin marvel marzipan mascot mattress "
+    "mayfly meadow medley meerkat mellow melody melon memento memory mercury merry mesa message "
+    "meteor midge mighty mild mill mimosa mineral mingle minnow minty miracle mirror misty "
+    "mitten mixer mixture moccasin mocha modern modest moment mongoose monkey monsoon monument "
+    "mosaic moss moth motto mountain mouse muddy muesli muffin mulberry mule mural museum "
+    "mushroom mustard myrtle mystery mystic napkin narwhal neat nebula necklace nectar needle "
+    "nettle neutron newt nickel nifty nightcap nightjar nimble noble noodle notebook notion "
+    "nova nozzle nugget number nursery nutmeg oaken oasis oatmeal oboe obsidian ocean octave "
+    "octopus offer okra oleander olive onion onyx opal opera orange orbit orchard orchid "
+    "oregano organ osprey ostrich otter ottoman outing oven overall oxygen oyster package "
+    "paddle pageant palace pancake panda pansy panther pantry papaya paper paprika parade "
+    "parakeet parcel parka parrot parsley parsnip passport pasta pastel pastime pastry pasture "
+    "pattern pavilion peacock peanut pearl pebble pecan pelican pencil penguin pennant peony "
+    "pepper peppy perch perky pesto petunia pewter pheasant phrase piano pickle picnic pigeon "
+    "piglet pigment pike pillow pine pinwheel pitcher pizza plaid planet plank planner planter "
+    "plaster plateau platinum platter playbook plaza pliers plucky plunger plush plywood pocket "
+    "poem polite poncho pond ponder pontoon pony poodle popcorn poplar porch porridge portrait "
+    "possum postcard poster potato pottery prairie prawn present pretzel primrose prism promise "
+    "prompt proton proud pudding puffer puffin pulley pulsar puma pumpkin puzzle pyramid python "
+    "quail quaint quarry quartet quick quiet quilt quince quiver rabbit raccoon radar radiator "
+    "radish raft rafter railway rainbow raincoat raisin rake rally ramble ranch rapid ratchet "
+    "raven ravine ravioli ready recipe recorder redwood reef regal reindeer reunion rhino "
+    "rhubarb ribbon riddle ridge risotto river robin robust rocker rocket rooftop rook rope "
+    "rosy rowboat ruby rudder rug rugged ruler rumble runway rustic sable saddle saffron sage "
+    "sailboat salmon sample sandal sandwich sandy sapling sapphire sardine sarong satchel satin "
+    "saucer saunter savanna sawmill scallion scallop scamper scarf scarlet schooner scissors "
+    "scone scooter screw scribble seagull seahorse sequel sequoia serene sesame session shady "
+    "shallot shamrock sharp shawl sheep shelf shimmer shiny shoelace shovel shrimp shutter "
+    "sidecar sierra sieve signal silica silkworm silky silo silver simple skate sketch skillet "
+    "skink skylark slate sled sleek slender slipper slogan smooth smoothie snapper snappy "
+    "snapshot sneaker snowball snowdrop snowfall snowy sock sofa solar solid solstice sonata "
+    "sonnet sorbet soup souvenir sparkle sparrow spatula spicy spinach spindle spire sponge "
+    "spool spoon sprinkle sprint sprout spruce squash squid squiggle squirrel stable stadium "
+    "stallion stanza stapler starfish starling starship station statue steady steeple stencil "
+    "stool stopper stork story stove strainer stream string stripe stroll strudel studio sturdy "
+    "sturgeon suede sugar suitcase summit sunbeam sundial sunlit sunny sunrise sunset super "
+    "surprise swallow swamp swan sweater swirl sycamore symphony syrup table tablet taco "
+    "tadpole tandem tape tapestry tapioca tarragon tartan tavern taxi teak teamwork teapot "
+    "teaspoon temple tempo tender termite terrace terrier theory thermos thicket thimble "
+    "thistle thrifty thrush thunder tiara ticket tickle tidy tiger timber timeline timely "
+    "tinker tinsel toffee tomato tongs tonic toolbox topaz torch tortilla tortoise toucan towel "
+    "tower township toybox tractor trailer train tram tranquil trawler treasure treetop trellis "
+    "triangle tricycle trinket tripod triumph trolley trombone trophy trot trousers trout "
+    "trowel trumpet trunk trusty tuba tugboat tulip tumbler tuna tundra tunic tunnel turban "
+    "turmeric turnip turret turtle tuxedo tweezers twilight twinkle twirl ukulele umbrella "
+    "unicorn unicycle universe upbeat upgrade urban urchin vacation valley vanilla vantage vase "
+    "velvet venture veranda viaduct vibrant victory village vine vineyard vintage viola violet "
+    "violin viper vivid volcano voltage voyage waffle wagon wallet walnut walrus wander warbler "
+    "wardrobe warm warmth wasabi washer wasp wavy waxwing weasel weevil welcome wetland wheat "
+    "whimsy whisk whistle wicker wiggle willow windmill window windy wise wisteria witty wombat "
+    "wonder woodland woolly workshop worthy yarn yarrow yodel young zany zebra zenith zephyr "
+    "zesty zigzag zinc zinnia zipper zucchini"
 )
-# Deduped, because a repeated word would make the entropy figure printed below a lie.
-WORDS = sorted(set(_WORDS_RAW.split()))
+# Deduped and frozen. A repeated word would make the entropy figure below a lie, and a tuple
+# because nothing should ever be able to shrink this at runtime.
+WORDS = tuple(sorted(set(_WORDS_RAW.split())))
 
-PASSPHRASE_WORDS = 6
+# The floor the security argument above rests on. Checked at IMPORT, not in a test: a test can
+# be deleted in the same commit that trims the list, and the failure mode of a quietly smaller
+# list is invisible — every password issued afterwards is weaker and nothing looks different.
+MIN_WORDS = 1296
+if len(WORDS) < MIN_WORDS:
+    raise RuntimeError(
+        f"app.seed.WORDS has {len(WORDS)} words, below the {MIN_WORDS} the passphrase "
+        "strength is specified against. Add words; never remove them."
+    )
+
+# FOUR words, per the user, and no digits. See the note on the word list: the size of the list
+# is what pays for the shortness of the passphrase.
+PASSPHRASE_WORDS = 4
 DEFAULT_HOUSEHOLD_NAME = "The Family"
 
 
@@ -76,17 +198,25 @@ def slugify_username(name: str) -> str:
 
 
 def generate_passphrase(word_count: int = PASSPHRASE_WORDS) -> str:
-    """`secrets.choice`, never `random` — `random` is a Mersenne Twister and is predictable
-    from a handful of prior outputs, which is a real problem for a seeder that may be run
-    repeatedly during a deploy."""
-    words = [secrets.choice(WORDS) for _ in range(word_count)]
-    # Two digits on the end so the string satisfies "must contain a number" password policies
-    # in password managers and browser autofill heuristics, and adds ~6.6 bits for free.
-    return "-".join(words) + f"-{secrets.randbelow(100):02d}"
+    """`"willow-thistle-copper-lagoon"`. Four words, hyphens, NO DIGITS.
+
+    `secrets.choice`, never `random` — `random` is a Mersenne Twister and is predictable from a
+    handful of prior outputs, which is a real problem for a seeder that may be run repeatedly
+    during a deploy.
+
+    The trailing two digits this used to carry are gone deliberately. They bought 6.6 bits and
+    cost more than that in the real failure mode: this string is retyped from a phone by
+    someone reading it out of a WhatsApp message, and a digit group is where the transcription
+    breaks. All of the strength is in the word list now, which is the parameter that can be
+    grown without making the credential harder to type.
+    """
+    return "-".join(secrets.choice(WORDS) for _ in range(word_count))
 
 
 def passphrase_entropy_bits(word_count: int = PASSPHRASE_WORDS) -> float:
-    return word_count * math.log2(len(set(WORDS))) + math.log2(100)
+    """41.4 bits at the default: 4 x log2(1296). Computed, never hardcoded, so the number
+    printed to an operator tracks the list they are actually drawing from."""
+    return word_count * math.log2(len(WORDS))
 
 
 def _validate_timezone(name: str) -> str:

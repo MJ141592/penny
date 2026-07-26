@@ -56,6 +56,24 @@ class Settings(BaseSettings):
     default_timezone: str = "Europe/London"
     serve_frontend: bool = True
 
+    # --- Extraction cadence ---------------------------------------------------------------
+    # Extraction is charged per CALL, not per message: ~1,400 tokens of system prompt, care
+    # brief and open-events block ride along with every request regardless of how much
+    # conversation is in it. Extracting on every inbound message measured at $0.00763/message
+    # against a planned $0.00042 — 18x — because a five-message run pays that fixed tax
+    # thirteen times over. Batching also extracts BETTER: a thread about one appointment
+    # arrives finished and becomes one event instead of three partials that then need paid
+    # merge calls to reconcile.
+    #
+    # These two are OR-ed, and the gate lives in `extraction.service` so that every caller
+    # inherits it. Raising the count saves money and adds latency to the feed; the age is what
+    # bounds that latency, so lowering the count without also lowering the age is the safe
+    # direction to experiment in.
+    extract_min_unextracted: int = 40
+    # NOT an int: tests and a "flush fast" incident setting both want fractions of an hour.
+    # The age is measured from the oldest waiting message's `sent_at`.
+    extract_max_age_hours: float = 6.0
+
     # --- Group onboarding -----------------------------------------------------------------
     # Where a family is sent after Penny is added to their group. It goes into the welcome
     # message, so a wrong value here is a dead link in the first thing the product ever says.
@@ -72,6 +90,32 @@ class Settings(BaseSettings):
     # so this string is compared against, not just displayed — change it and every existing
     # household looks configured.
     onboarding_placeholder_care_recipient: str = "your family member"
+    # How long after process start a `group.joined` burst is treated as whatsmeow app-state
+    # sync rather than a human adding Penny to a chat. whatsmeow re-emits JoinedGroup for every
+    # group the account was ALREADY in while it replays app state after a connect, and every
+    # deploy reconnects — which is how a login password reached group chats nobody had invited
+    # Penny to. Nothing on the event distinguishes the two cases; the only signal is that the
+    # burst arrives seconds after the socket came up.
+    #
+    # A join refused in this window is still RECORDED, so it can never provision later either
+    # (see `app.groups`). The cost is that a family who add Penny in the first three minutes
+    # after a deploy get no welcome and a human sends their credentials by hand — a support
+    # message, against a password in a stranger's chat, which cannot be unsent.
+    #
+    # 0 disables the window, which is only safe on a number that belongs to no other groups.
+    startup_quiet_period_seconds: float = 180.0
+    # The third gate, and the one that covers the day this ships. The other two can both be
+    # open at once: on a brand-new ledger every pre-existing group is a "first sighting", and a
+    # sync burst that lands a little more than `startup_quiet_period_seconds` after boot clears
+    # the quiet window too. That combination was reproducible against the shipped code — eight
+    # joins, eight households, eight passwords — and it is the exact state of production on the
+    # first deploy, when `known_groups` is empty.
+    #
+    # The signal is cardinality: a human adds Penny to ONE group at a time, whereas whatsmeow
+    # replays every group the account already belonged to at once. So a welcome is held for this
+    # long and only sent if no other group appeared in the meantime. Every genuine welcome is
+    # therefore ~45s late, which is the whole cost. 0 disables the guard.
+    join_burst_window_seconds: float = 45.0
 
     @field_validator("database_url")
     @classmethod

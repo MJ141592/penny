@@ -53,8 +53,8 @@ from app.security import hash_password
 # The passphrase generator and its word list live in `app.seed`, which is where the only other
 # credential in this product is minted. Importing it (rather than copying the list) is what
 # keeps "the thing a family types on a phone" a single, reviewable definition of strength —
-# ~54 bits, no homophones. `app.seed` is import-safe: everything below its `main()` is behind
-# the `__main__` guard.
+# four words from 1296, ~41 bits, no digits and no homophones. `app.seed` is import-safe:
+# everything below its `main()` is behind the `__main__` guard.
 from app.seed import DEFAULT_HOUSEHOLD_NAME, WORDS, generate_passphrase
 
 if TYPE_CHECKING:
@@ -64,10 +64,24 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-# Two words and two digits: ~250^2 * 100 ≈ 6M, against a cap of tens of households. It is an
-# identifier, not a secret — readability wins, because someone types it on a phone.
+# THE HANDLE THE WELCOME MESSAGE PROMISES. Two constants because the two paths into
+# `mentions_penny` are different mechanisms: picking Penny out of WhatsApp's @-list produces a
+# real mention (her JID in the payload, the visible text being whatever the picker inserted —
+# a phone number, for anyone who has not saved the contact), while typing the literal string
+# produces only text. Both are advertised, so both must be recognised, and the literal must be
+# matched case-insensitively: a phone keyboard capitalises the first word of a sentence.
+PENNY_HANDLE_NAME = "Penny"
+PENNY_HANDLE = f"@{PENNY_HANDLE_NAME}"
+
+# Two words, no digits: 1296^2 ≈ 1.7M, against a cap of tens of households. It is an
+# identifier, not a secret — readability wins, because someone types it on a phone alongside a
+# password they also have to get right.
 USERNAME_WORDS = 2
-# Collisions are vanishingly unlikely; exhausting eight of them means something else is wrong.
+# The two digits used to be the collision insurance and are gone, so this loop matters more
+# than it did: 1.7M pairs against 25 households is a ~2e-4 birthday chance, and every retry
+# draws a fresh pair, so eight attempts fail with probability ~1e-30. Exhausting them means
+# something other than luck is wrong. The unique index on `households.username` is what
+# actually enforces it; this loop only makes the enforcement recoverable.
 USERNAME_ATTEMPTS = 8
 
 
@@ -88,9 +102,13 @@ class Provisioned:
 
 
 def generate_username() -> str:
-    """`"cedar-thistle-04"`. Readable, sayable over the phone, and not a UUID."""
-    words = [secrets.choice(WORDS) for _ in range(USERNAME_WORDS)]
-    return "-".join(words) + f"-{secrets.randbelow(100):02d}"
+    """`"cedar-thistle"`. Two words, no trailing digits. Readable, sayable, not a UUID.
+
+    The digits went because of where this string is actually used: it sits directly above a
+    four-word password in the welcome message, and two adjacent hyphenated strings that differ
+    only in whether one ends in digits is a login form filled in wrong.
+    """
+    return "-".join(secrets.choice(WORDS) for _ in range(USERNAME_WORDS))
 
 
 def advisory_lock_key(group_external_id: str) -> int:
@@ -300,6 +318,15 @@ def welcome_message(username: str, passphrase: str, public_url: str) -> str:
     Asked as three specific questions rather than "tell me about them" — an open prompt gets a
     one-word reply, and the third question is where the durable facts live (conditions,
     medications, the GP's name) that later messages assume you already know.
+
+    IT ALSO STATES THE ONE RULE ABOUT WHEN PENNY SPEAKS, and that paragraph is not copy, it is
+    the product's contract. Penny is paired to a real WhatsApp account that belongs to real
+    group chats, and the reason this line exists is that she once answered in all of them. A
+    family that has been told "she only replies when @-mentioned" can tell a stray message from
+    a broken bot; more importantly, saying it here is what makes silence everywhere else a
+    documented behaviour rather than something a family reads as Penny being broken. The handle
+    is spelled out because a member who has not saved the number sees a phone number in the
+    @-picker and will not recognise it as her.
     """
     url = public_url.rstrip("/")
     return (
@@ -324,6 +351,11 @@ def welcome_message(username: str, passphrase: str, public_url: str) -> str:
         "That last one matters more than it sounds. It is what lets me understand a message "
         'like "she had a bad night again" months from now, instead of guessing who "she" is. '
         "You can also add it at Settings on the website.\n"
+        "\n"
+        "After that I stay out of the way. I only reply when someone @-mentions me: type @ and "
+        f"pick {PENNY_HANDLE_NAME} from the list, or just write {PENNY_HANDLE} in your message, "
+        "and I will answer here. Any other time I am reading quietly and keeping the timeline "
+        "up to date — no replies, no notifications.\n"
         "\n"
         "Two things worth knowing: this message contains your password, so anyone added to this "
         "group later can scroll back and read it, and you can change it in Settings whenever "

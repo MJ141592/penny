@@ -5,7 +5,9 @@ Nine tables and no more. Two rules run through all of them:
 1. **`household_id` is NOT NULL everywhere.** There is no RLS and no `users` table; tenant
    isolation is this column plus the signed session cookie plus one `HouseholdCtx` dependency.
    A query that forgets the filter is a tenant leak, so the column can never be absent to
-   filter on.
+   filter on. `known_groups` is the ONE deliberate exception and says why in its own docstring:
+   it exists precisely to answer questions about groups that have no household and must never
+   get one.
 2. **The indexes are the idempotency guarantees**, not performance tuning. The partial unique
    indexes on `messages` are what make a replayed GOWA webhook and a re-uploaded (longer)
    export insert exactly once. Read `__table_args__` as business logic.
@@ -175,6 +177,31 @@ class WhatsappLink(Base):
     )
     linked_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = _created_at()
+
+
+class KnownGroup(Base):
+    """Every WhatsApp group Penny has ever seen an event from. NO household_id, on purpose.
+
+    The join-safety ledger — `app.groups` is the only thing that writes it, and its docstring
+    carries the incident this exists because of. In schema terms the point is narrow: Penny is
+    paired to a real account that already belonged to other people's group chats, so "have we
+    seen this group before?" is a question that must be answerable about groups that have no
+    household and must never be given one. A `whatsapp_links` row cannot answer it, because a
+    row there IS a household.
+
+    Deliberately two columns. Anything else invites the table to become a place to hang state,
+    and the value of a ledger is that a row's mere existence is the whole meaning.
+    """
+
+    __tablename__ = "known_groups"
+
+    # The GOWA chat_id ('1203...@g.us'). PK, so the ledger is idempotent by construction and
+    # `INSERT ... ON CONFLICT DO NOTHING` has an arbiter without a separate index.
+    group_external_id: Mapped[str] = mapped_column(sa.Text, primary_key=True)
+    # Set once and never updated. It is not a "last seen" clock: an operator asking "when did
+    # Penny first hear from this group?" is asking about the day it appeared, and overwriting
+    # would erase the only evidence of whether a welcome should ever have been sent.
+    first_seen_at: Mapped[datetime] = _created_at()
 
 
 class Message(Base):

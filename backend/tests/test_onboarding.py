@@ -28,7 +28,10 @@ from app.onboarding import Provisioned, generate_username, provision_for_group, 
 if TYPE_CHECKING:
     from app.config import Settings
 
-USERNAME_SHAPE = re.compile(r"^[a-z]+-[a-z]+-\d{2}$")
+# Two words, NO trailing digits. The digits went because this string sits directly above a
+# four-word password in the welcome message, and two hyphenated strings that differ only in
+# whether one ends in digits is a login form filled in wrong.
+USERNAME_SHAPE = re.compile(r"^[a-z]+-[a-z]+$")
 
 
 @pytest.fixture
