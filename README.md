@@ -15,6 +15,7 @@ backend/           FastAPI app (Python 3.12+), managed with uv
   app/             config, OpenAI client, routers
   tests/           pytest; `live` and `db` markers opt in to external deps
 frontend/          React + TypeScript, built with Vite
+infra/             provision.py — the whole deployment, as one idempotent script
 docs/              API contract, deployment, GOWA runbook
 ```
 
@@ -117,8 +118,32 @@ PENNY_TEST_DATABASE_URL=postgresql+asyncpg://... uv run pytest -m db
 
 CI runs `pytest -m "not live"` plus the frontend build on every PR.
 
+## Deploying
+
+The deployment is reproducible from this repository. One idempotent script builds all of it — the
+project, Postgres, both services, the volume, every generated secret and the domain:
+
+```sh
+export OPENAI_API_KEY=sk-...
+infra/provision.py --workspace <workspace-id> --domain penny.example.com --dry-run   # look first
+infra/provision.py --workspace <workspace-id> --domain penny.example.com
+```
+
+An OpenAI key and a domain are the only two values a teammate has to bring. Everything else is
+generated per environment, derived from the project's topology, or a default in
+`backend/app/config.py` that is deliberately **not** set on Railway.
+
+Re-running converges: nothing is duplicated and no existing secret is rotated. `--self-test` proves
+the invariants offline, `--dry-run` shows every mutation before it happens.
+
+Full runbook — prerequisites, the steps only a human can do, how to verify, how to roll back, the
+kill switch, and the fourteen platform traps that cost a night — in
+[docs/deployment.md](docs/deployment.md).
+
 ## Docs
 
+- [docs/deployment.md](docs/deployment.md) — the deployment runbook: provisioning, verification, rollback, traps
+- [infra/variables.md](infra/variables.md) — every variable, classified, and why it is allowed to exist
 - [docs/architecture.md](docs/architecture.md) — end-to-end system and deployment architecture
 - [docs/api-contract.md](docs/api-contract.md) — the HTTP contract the frontend types are generated from
 - [docs/railway-deployment.md](docs/railway-deployment.md) — service topology, variables, and the platform gotchas
