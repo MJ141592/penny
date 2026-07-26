@@ -193,6 +193,73 @@ class GowaWebhookEnvelope(BaseModel):
     payload: GowaMessagePayload | None = None
 
 
+class GowaEventHead(BaseModel):
+    """Just the event name, validating nothing else, so routing never depends on the body shape.
+
+    Every field optional and `extra="allow"`: this model must parse ANY authentic body, because
+    failing here discards an event that a differently-shaped model would have handled fine.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    event: str | None = None
+
+
+# Being ADDED to a group is not a message, so a `message`-only subscription hears nothing and
+# onboarding never fires — which is exactly how this shipped broken. These are the two events
+# that mean "we are in a new group", per GOWA's own README table.
+GROUP_JOINED_EVENT = "group.joined"
+GROUP_PARTICIPANTS_EVENT = "group.participants"
+GROUP_EVENTS = frozenset({GROUP_JOINED_EVENT, GROUP_PARTICIPANTS_EVENT})
+
+
+class GowaGroupPayload(BaseModel):
+    """`group.joined` / `group.participants`.
+
+    Shape read from the emitting source (`src/infrastructure/whatsapp/event_group.go`) rather
+    than the docs, which tabulate `group.joined` but publish no example for it. Both events
+    build the same map: `chat_id`, `type`, `jids`, plus an optional `group_name` and `reason`
+    on the joined path. Every field but `chat_id` is optional here for the same reason the
+    message payload is generous — a required field turns a shape change into a 422, and a
+    non-2xx is five GOWA retries of a body that will never parse.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    chat_id: str
+    type: str | None = None
+    jids: list[str] = Field(default_factory=list)
+    group_name: str | None = None
+    reason: str | None = None
+
+
+class GowaGroupEnvelope(BaseModel):
+    """Parsed only for the group events, so the message path keeps its own strict shape."""
+
+    model_config = ConfigDict(extra="allow")
+
+    event: str | None = None
+    device_id: str | None = None
+    payload: GowaGroupPayload | None = None
+
+
+def _is_self_join(envelope: GowaGroupEnvelope, payload: GowaGroupPayload) -> bool:
+    """Did WE just get added to this group, as opposed to someone else joining it?
+
+    `group.joined` means it by definition — GOWA emits it with `jids` set to our own JID.
+    `group.participants` fires for every membership change in every group we are already in, so
+    provisioning on it unconditionally would mint a household every time a cousin joins a chat
+    Penny has been sitting in for months. It only counts when the action is a join AND our own
+    JID is among the affected — and `device_id` on the envelope is that JID.
+    """
+    if envelope.event == GROUP_JOINED_EVENT:
+        return True
+    if (payload.type or "").lower() != "join":
+        return False
+    own = (envelope.device_id or "").split(":")[0].split("@")[0]
+    return bool(own) and any(own == jid.split(":")[0].split("@")[0] for jid in payload.jids)
+
+
 async def read_capped_body(request: Request, limit: int = MAX_BODY_BYTES) -> bytes:
     """The raw body, or `PayloadTooLargeError` before `limit` bytes are ever held.
 
@@ -315,7 +382,19 @@ async def gowa_webhook(
     raw = await read_capped_body(request)
     verify_signature(raw, request.headers.get(SIGNATURE_HEADER))
 
-    # (b) Only now is it safe to spend cycles on the body.
+    # (b) Only now is it safe to spend cycles on the body. Read the event name FIRST, from a
+    # model that validates nothing else: a group payload carries `chat_id` but no `id`, so
+    # parsing it as a message fails and the join is discarded as "unparsable" — which is exactly
+    # how group.joined got silently dropped. Route on the event, then parse for that shape.
+    try:
+        head = GowaEventHead.model_validate_json(raw)
+    except ValidationError:
+        log.warning("webhook.unparsable", extra={"byte_count": len(raw)})
+        return _ignored("unparsable")
+
+    if head.event in GROUP_EVENTS:
+        return await _handle_group_event(raw, session, background)
+
     try:
         envelope = GowaWebhookEnvelope.model_validate_json(raw)
     except ValidationError:
@@ -407,6 +486,82 @@ async def gowa_webhook(
     if result.inserted:
         background.add_task(spawn_extraction, result.household_id, payload.id)
     return {"status": "ok", "inserted": result.inserted}
+
+
+async def _handle_group_event(
+    raw: bytes,
+    session: AsyncSession,
+    background: BackgroundTasks,
+) -> dict[str, Any]:
+    """Penny was added to a group: provision the household and post the credentials.
+
+    The message path's twin, minus the message — a join carries no text to ingest, so this
+    provisions and sends and nothing else. Everything else is deliberately identical, including
+    the ordering trap: `provision_for_group` does not commit, `get_session` does, and
+    `spawn_welcome` waits for the household row to be readable on a fresh connection before it
+    says a word. Committed first, credential second.
+
+    Idempotency is the same guarantee too. GOWA retries five times on a non-2xx, and a join can
+    arrive alongside the first messages; whoever loses the advisory lock gets `created=False`
+    and sends nothing, so a family gets one password rather than five.
+    """
+    try:
+        envelope = GowaGroupEnvelope.model_validate_json(raw)
+    except ValidationError:
+        log.warning("webhook.group_unparsable", extra={"byte_count": len(raw)})
+        return _ignored("unparsable")
+
+    payload = envelope.payload
+    if payload is None:
+        log.warning("webhook.no_payload", extra={"event": envelope.event})
+        return _ignored("unparsable")
+
+    # Same suffix rule as the message path: there is no `is_group` field anywhere in GOWA.
+    if not payload.chat_id.endswith(GROUP_JID_SUFFIX):
+        return _ignored("not_a_group")
+
+    if not _is_self_join(envelope, payload):
+        return _ignored("not_a_self_join")
+
+    provisioned = await provision_for_group(session, payload.chat_id)
+    if provisioned is None:
+        # Onboarding off, or the cap reached. Exactly the old behaviour: 200, no rows, silent.
+        record_unlinked_group(payload.chat_id)
+        log.warning(
+            "webhook.unknown_group",
+            extra={"chat_id": payload.chat_id, "event": envelope.event, "onboarded": False},
+        )
+        return _ignored("onboarding_declined")
+
+    if not provisioned.created:
+        # A message from this group already provisioned it; that delivery owns the welcome.
+        log.info(
+            "webhook.group_already_onboarded",
+            extra={
+                "chat_id": payload.chat_id,
+                "event": envelope.event,
+                "household_id": str(provisioned.household_id),
+            },
+        )
+        return _ignored("already_linked")
+
+    background.add_task(
+        spawn_welcome,
+        provisioned.household_id,
+        payload.chat_id,
+        provisioned.username,
+        provisioned.passphrase,
+    )
+    log.info(
+        "webhook.onboarded",
+        extra={
+            "chat_id": payload.chat_id,
+            "event": envelope.event,
+            "household_id": str(provisioned.household_id),
+            "via": "group_event",
+        },
+    )
+    return {"status": "ok", "onboarded": True}
 
 
 async def _onboard_group(
