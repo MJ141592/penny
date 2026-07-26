@@ -57,6 +57,23 @@ _MEDIA_LABELS = {
     "location": "location",
 }
 
+# A TRANSCRIPT IS THE ONE MEDIA WE DO NOT PLACEHOLDER, AND THAT IS NOT A CONTRADICTION.
+# The rule above exists because we do not have the photo: "[photo]" is all we honestly know, and
+# printing a caption beside it invites the model to describe an image nobody read. A transcript
+# is the opposite case — it IS the contents, in the speaker's own words, and hiding it behind
+# "[voice note]" throws away the message. In a family care chat that is not a rare shape:
+# "Mum had a fall this morning" is spoken far more often than it is typed.
+#
+# The label stays, moved to where it belongs — beside the SENDER rather than in place of the
+# words:
+#
+#     [m17] Tue 2026-07-14 21:04 — Sarah (voice note): she had a bad night again
+#
+# so the model weighs it as speech that a machine heard, not as text a human proof-read. That
+# matters for exactly the words that matter most: transcription mishears names and drug names,
+# and "(voice note)" is the model's only cue that "a pixie band" might have been "Apixaban".
+SPOKEN_LABEL = "voice note"
+
 
 @dataclass(frozen=True, slots=True)
 class ChunkMessage:
@@ -73,6 +90,11 @@ class ChunkMessage:
     message_type: str = "text"
     media_filename: str | None = None  # only for `[document: discharge-letter.pdf]`
     source_ordinal: int | None = None  # export line number; the tiebreak within a minute
+    # `text` came from a speech-to-text model, not from a keyboard. Carried explicitly rather
+    # than inferred from `message_type == "audio" and text`, because an audio FILE forwarded
+    # with a caption has both and is not a transcript — printing that caption as the spoken
+    # words would attribute a sentence to a recording nobody transcribed.
+    transcribed: bool = False
 
 
 # The two handle namespaces, defined ONCE. `render_transcript` prints these labels, `handles`
@@ -138,6 +160,8 @@ def render_transcript(chunk: Chunk, tz: ZoneInfo) -> str:
 
         [c1] context_only Tue 2026-07-14 18:02 — Tom: is she still off her food?
         [m1] Tue 2026-07-14 21:04 — Sarah: she had a bad night again, up 4 times
+        [m2] Tue 2026-07-14 21:09 — Tom (voice note): I'll ring the surgery in the morning
+        [m3] Tue 2026-07-14 21:11 — Tom: [photo]
 
     Printing the WEEKDAY is not decoration. Models resolve "last Tuesday" reliably when
     the weekday is on the line and unreliably when they must derive it from an ISO date,
@@ -232,14 +256,23 @@ def _render_line(handle: str, message: ChunkMessage, tz: ZoneInfo, *, context: b
     stamp = f"{_WEEKDAYS[local.weekday()]} {local:%Y-%m-%d %H:%M}"
     marker = "context_only " if context else ""
     sender = message.sender_display_name or "Unknown"
+    if _is_transcript(message):
+        sender = f"{sender} ({SPOKEN_LABEL})"
     return f"[{handle}] {marker}{stamp} — {sender}: {_render_body(message)}".rstrip()
+
+
+def _is_transcript(message: ChunkMessage) -> bool:
+    """Words we have, spoken rather than typed. Untranscribed audio is NOT this."""
+    return message.transcribed and bool(message.text and message.text.strip())
 
 
 def _render_body(message: ChunkMessage) -> str:
     # One message is one line: a raw newline would let the model read half a message as
     # a separate, unhandled one and cite a handle that does not cover the words it used.
     text = " ".join(message.text.split()) if message.text else ""
-    if message.message_type == "text":
+    if message.message_type == "text" or _is_transcript(message):
+        # A transcript prints as its words, with no placeholder in front of them. The
+        # `(voice note)` on the sender is what keeps it honest — see SPOKEN_LABEL.
         return text
     label = _MEDIA_LABELS.get(message.message_type, "attachment")
     placeholder = f"[{label}: {message.media_filename}]" if message.media_filename else f"[{label}]"

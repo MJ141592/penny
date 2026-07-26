@@ -22,7 +22,8 @@
           "message_id": "148b5725-fc0e-43cc-b651-3ac4cde9397e",
           "sent_at": "2026-07-21T16:40:00Z",
           "sender": "Sarah",
-          "quote": "memory clinic letter came, 19th August at 10.15, Salford Royal. I'll take her"
+          "quote": "memory clinic letter came, 19th August at 10.15, Salford Royal. I'll take her",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -50,7 +51,8 @@
           "message_id": "cdb081a8-0239-4962-b958-b0caf4b2d39e",
           "sent_at": "2026-07-19T11:05:00Z",
           "sender": "Tom",
-          "quote": "cardiology is 6th Aug 2.20pm, I'll take the afternoon off and drive her"
+          "quote": "cardiology is 6th Aug 2.20pm, I'll take the afternoon off and drive her",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -78,7 +80,8 @@
           "message_id": "5cc7e609-08b9-445e-afd5-58abe9a37f7d",
           "sent_at": "2026-07-17T12:48:00Z",
           "sender": "Sarah",
-          "quote": "booked the review, 31st at 9.30 with Dr Aziz"
+          "quote": "booked the review, 31st at 9.30 with Dr Aziz",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -98,7 +101,8 @@
           "message_id": "c9f227a0-3524-4e7c-a520-2a194276457d",
           "sent_at": "2026-07-22T14:22:00Z",
           "sender": "Priya",
-          "quote": "stool comes Tuesday morning, I'll be there to let them in"
+          "quote": "stool comes Tuesday morning, I'll be there to let them in",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -118,7 +122,8 @@
           "message_id": "69d6c664-f335-42e6-9f82-6f32845c481b",
           "sent_at": "2026-07-22T14:03:00Z",
           "sender": "Priya",
-          "quote": "ordered her a perching stool, she keeps leaning on the worktop to make a brew"
+          "quote": "ordered her a perching stool, she keeps leaning on the worktop to make a brew",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -143,7 +148,8 @@
           "message_id": "7339d950-0ba9-4dd5-b262-8f5ddf2b3ee1",
           "sent_at": "2026-07-20T06:41:00Z",
           "sender": "Sarah",
-          "quote": "only up twice last night, better than last week"
+          "quote": "only up twice last night, better than last week",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -168,7 +174,8 @@
           "message_id": "05a33922-b93e-44a3-ad7b-9877302f8b02",
           "sent_at": "2026-07-18T21:33:00Z",
           "sender": "Tom",
-          "quote": "saturday evening apixaban still in the box, she's missed it again"
+          "quote": "saturday evening apixaban still in the box, she's missed it again",
+          "transcribed": true
         }
       ],
       "edited_at": "2026-07-19T09:12:44Z",
@@ -193,13 +200,15 @@
           "message_id": "115c750f-4256-4103-a461-6aa8091ab0ef",
           "sent_at": "2026-07-17T13:16:00Z",
           "sender": "Sarah",
-          "quote": "he's stopped the amlodipine, thinks that's what's making her dizzy"
+          "quote": "he's stopped the amlodipine, thinks that's what's making her dizzy",
+          "transcribed": false
         },
         {
           "message_id": "5acba942-2d52-4a1c-ad29-146e87b45d69",
           "sent_at": "2026-07-17T13:22:00Z",
           "sender": "Dot",
-          "quote": "good, she's not been right since she started them"
+          "quote": "good, she's not been right since she started them",
+          "transcribed": true
         }
       ],
       "edited_at": null,
@@ -230,19 +239,22 @@
           "message_id": "f0bbac57-df22-4ef2-bb9c-07afb60b432f",
           "sent_at": "2026-07-17T08:12:00Z",
           "sender": "Sarah",
-          "quote": "in the waiting room with Mum, 9.30 with Dr Aziz"
+          "quote": "in the waiting room with Mum, 9.30 with Dr Aziz",
+          "transcribed": false
         },
         {
           "message_id": "a488dc28-a3e1-4c15-869f-74fb5a392986",
           "sent_at": "2026-07-17T10:04:00Z",
           "sender": "Sarah",
-          "quote": "Just got back from the GP with Mum, bloods taken, review in 2 weeks"
+          "quote": "Just got back from the GP with Mum, bloods taken, review in 2 weeks",
+          "transcribed": false
         },
         {
           "message_id": "99a753d7-372b-47db-b183-c888d28c26e3",
           "sent_at": "2026-07-17T10:19:00Z",
           "sender": "Tom",
-          "quote": "did you ask him about the dizziness?"
+          "quote": "did you ask him about the dizziness?",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -262,7 +274,8 @@
           "message_id": "3dd21e52-85fb-44bf-a48f-d677d13a884e",
           "sent_at": "2026-07-15T16:52:00Z",
           "sender": "Dot",
-          "quote": "had our Margaret on the phone an hour, all about Blackpool. She sounded like herself"
+          "quote": "had our Margaret on the phone an hour, all about Blackpool. She sounded like herself",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -287,13 +300,15 @@
           "message_id": "cf691291-d2a0-45e1-b1e0-0e53f7107e2d",
           "sent_at": "2026-07-14T20:04:00Z",
           "sender": "Sarah",
-          "quote": "she had a bad night again, up 4 times"
+          "quote": "she had a bad night again, up 4 times",
+          "transcribed": true
         },
         {
           "message_id": "4e4b5d6c-4420-4561-a993-e05f96900d88",
           "sent_at": "2026-07-14T20:09:00Z",
           "sender": "Sarah",
-          "quote": "came down twice as well, I heard her on the stairs"
+          "quote": "came down twice as well, I heard her on the stairs",
+          "transcribed": true
         }
       ],
       "edited_at": null,
@@ -318,7 +333,8 @@
           "message_id": "642dfa53-3346-4101-b6a5-669635b56494",
           "sent_at": "2026-07-14T11:34:00Z",
           "sender": "Dot",
-          "quote": "made her a bit of tea and she wouldn't touch it"
+          "quote": "made her a bit of tea and she wouldn't touch it",
+          "transcribed": true
         }
       ],
       "edited_at": null,
@@ -338,7 +354,8 @@
           "message_id": "1153645f-d83e-4e41-9b81-db72cc5e480f",
           "sent_at": "2026-07-13T18:07:00Z",
           "sender": "Tom",
-          "quote": "we'll come over Saturday, so you get a weekend Sarah"
+          "quote": "we'll come over Saturday, so you get a weekend Sarah",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -363,7 +380,8 @@
           "message_id": "27eea10e-a14d-4072-a11e-dcd707f9ae2d",
           "sent_at": "2026-07-09T15:02:00Z",
           "sender": "Tom",
-          "quote": "picked up her co-codamol repeat, dropped it off on the way home"
+          "quote": "picked up her co-codamol repeat, dropped it off on the way home",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -388,7 +406,8 @@
           "message_id": "3431a44c-0469-465b-a2a0-fb37efafa5ee",
           "sent_at": "2026-07-06T17:21:00Z",
           "sender": "Priya",
-          "quote": "she only had half a sandwich again, wouldn't have anything else"
+          "quote": "she only had half a sandwich again, wouldn't have anything else",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -416,7 +435,8 @@
           "message_id": "284fcbd7-cc7c-4d1e-9634-86f6ae13ccd5",
           "sent_at": "2026-07-02T10:15:00Z",
           "sender": "Priya",
-          "quote": "chiropodist rang, she didn't answer the door. She says nobody told her"
+          "quote": "chiropodist rang, she didn't answer the door. She says nobody told her",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -436,7 +456,8 @@
           "message_id": "813516cb-f28f-43bc-b2a9-b200357b6586",
           "sent_at": "2026-06-27T10:12:00Z",
           "sender": "Sarah",
-          "quote": "agency can do 4 mornings from July, it's about £60 more a week"
+          "quote": "agency can do 4 mornings from July, it's about £60 more a week",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -461,13 +482,15 @@
           "message_id": "9fb840aa-4b30-4998-81d5-75e9ec78fc3f",
           "sent_at": "2026-06-23T19:41:00Z",
           "sender": "Sarah",
-          "quote": "she's only been dizzy since the amlodipine started, that can't be a coincidence"
+          "quote": "she's only been dizzy since the amlodipine started, that can't be a coincidence",
+          "transcribed": false
         },
         {
           "message_id": "1de814d8-7675-4b97-a229-88089635f95c",
           "sent_at": "2026-06-23T19:58:00Z",
           "sender": "Tom",
-          "quote": "worth asking Aziz, dizziness is on the leaflet"
+          "quote": "worth asking Aziz, dizziness is on the leaflet",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -492,7 +515,8 @@
           "message_id": "1cc1fd66-61ef-4327-8ae5-91d417992b4b",
           "sent_at": "2026-06-18T08:07:00Z",
           "sender": "Dot",
-          "quote": "she went dizzy getting up out of the chair, I had to grab her"
+          "quote": "she went dizzy getting up out of the chair, I had to grab her",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -520,7 +544,8 @@
           "message_id": "c76a6054-034e-423d-808b-29eb784a9295",
           "sent_at": "2026-06-15T11:20:00Z",
           "sender": "Tom",
-          "quote": "scan done, no drama. Results go to the GP in a couple of weeks"
+          "quote": "scan done, no drama. Results go to the GP in a couple of weeks",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -545,13 +570,15 @@
           "message_id": "f4b0adc8-2060-4260-a5ce-3f4075259d81",
           "sent_at": "2026-06-08T22:16:00Z",
           "sender": "Sarah",
-          "quote": "up 4 times again last night, I stopped over and I'm shattered"
+          "quote": "up 4 times again last night, I stopped over and I'm shattered",
+          "transcribed": true
         },
         {
           "message_id": "c32cf9d5-6d8a-4c48-a21d-6b5a71f2ab84",
           "sent_at": "2026-06-08T22:31:00Z",
           "sender": "Priya",
-          "quote": "is she napping in the afternoons? that might be part of it"
+          "quote": "is she napping in the afternoons? that might be part of it",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -589,7 +616,8 @@
           "message_id": "6796dce2-7966-4463-9c72-028f9c27b21c",
           "sent_at": "2026-06-03T16:22:00Z",
           "sender": "Sarah",
-          "quote": "Aziz has put her on amlodipine 5mg for the blood pressure, one a morning"
+          "quote": "Aziz has put her on amlodipine 5mg for the blood pressure, one a morning",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -614,7 +642,8 @@
           "message_id": "709fcf11-3dfd-439b-ac37-5f4281a97839",
           "sent_at": "2026-05-30T07:58:00Z",
           "sender": "Dot",
-          "quote": "her ankles were like balloons again by teatime, fine this morning though"
+          "quote": "her ankles were like balloons again by teatime, fine this morning though",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -642,13 +671,15 @@
           "message_id": "da31b977-0031-4c6a-b02d-9045a726a1c7",
           "sent_at": "2026-05-21T12:40:00Z",
           "sender": "Sarah",
-          "quote": "told him about the lunch thing and the keys. He's referring her to the memory clinic"
+          "quote": "told him about the lunch thing and the keys. He's referring her to the memory clinic",
+          "transcribed": false
         },
         {
           "message_id": "a47a1e03-1975-4a35-9f3b-b6f4a1971b94",
           "sent_at": "2026-05-21T12:51:00Z",
           "sender": "Tom",
-          "quote": "thank god. how long's the wait?"
+          "quote": "thank god. how long's the wait?",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -673,7 +704,8 @@
           "message_id": "0bda0e8c-d783-4646-ab98-dbe5323a911d",
           "sent_at": "2026-05-19T20:12:00Z",
           "sender": "Tom",
-          "quote": "evening tablet still in the box when I got there"
+          "quote": "evening tablet still in the box when I got there",
+          "transcribed": true
         }
       ],
       "edited_at": null,
@@ -693,7 +725,8 @@
           "message_id": "fee944d3-333a-4d2a-bbae-543f63b48a39",
           "sent_at": "2026-05-06T18:42:00Z",
           "sender": "Sarah",
-          "quote": "so: me in the week, you two alternate weekends, Dot Wednesday afternoons. Agreed?"
+          "quote": "so: me in the week, you two alternate weekends, Dot Wednesday afternoons. Agreed?",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -721,13 +754,15 @@
           "message_id": "303eb9a6-f93f-45a0-a80c-62038153e6b4",
           "sent_at": "2026-05-05T19:30:00Z",
           "sender": "Sarah",
-          "quote": "podiatry have cancelled tomorrow, no reason given"
+          "quote": "podiatry have cancelled tomorrow, no reason given",
+          "transcribed": false
         },
         {
           "message_id": "4037c698-7806-465a-b477-19694afcd9cd",
           "sent_at": "2026-05-06T09:11:00Z",
           "sender": "Sarah",
-          "quote": "rang them, earliest rebook is August. I've asked to go on the cancellation list"
+          "quote": "rang them, earliest rebook is August. I've asked to go on the cancellation list",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -752,13 +787,15 @@
           "message_id": "76c4c6a5-a445-4cd5-8645-b8c027599510",
           "sent_at": "2026-05-12T12:48:00Z",
           "sender": "Priya",
-          "quote": "sometime last week she was making a sandwich half an hour after the carer had done her lunch"
+          "quote": "sometime last week she was making a sandwich half an hour after the carer had done her lunch",
+          "transcribed": false
         },
         {
           "message_id": "9eaa80b0-6dba-4d7f-b5af-00b14b12e0bc",
           "sent_at": "2026-05-12T13:02:00Z",
           "sender": "Sarah",
-          "quote": "don't argue with her about it. Let's start writing meals on the whiteboard"
+          "quote": "don't argue with her about it. Let's start writing meals on the whiteboard",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -783,7 +820,8 @@
           "message_id": "3cc3ead9-c278-4147-a0fe-f4b7523e4272",
           "sent_at": "2026-04-28T21:52:00Z",
           "sender": "Sarah",
-          "quote": "she was up 3 times last night, that's twice this week now"
+          "quote": "she was up 3 times last night, that's twice this week now",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -808,7 +846,8 @@
           "message_id": "a73b40b5-3e3f-4120-b84d-0864cb921cac",
           "sent_at": "2026-04-17T16:07:00Z",
           "sender": "Sarah",
-          "quote": "surgery rang, they're halving the bisoprolol, her pulse is too low"
+          "quote": "surgery rang, they're halving the bisoprolol, her pulse is too low",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -836,7 +875,8 @@
           "message_id": "904aec95-1ca3-4ca8-83bd-3967fc22c7ff",
           "sent_at": "2026-04-16T08:55:00Z",
           "sender": "Priya",
-          "quote": "bloods done, she was very good about it. Results next week"
+          "quote": "bloods done, she was very good about it. Results next week",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -856,7 +896,8 @@
           "message_id": "885e9af8-768c-4161-96e0-0436ebe066c8",
           "sent_at": "2026-04-11T18:33:00Z",
           "sender": "Dot",
-          "quote": "she was in tears when I left. I hate leaving her on her own"
+          "quote": "she was in tears when I left. I hate leaving her on her own",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -881,7 +922,8 @@
           "message_id": "59057921-cc04-4cf5-a751-f9b390569423",
           "sent_at": "2026-04-02T12:19:00Z",
           "sender": "Sarah",
-          "quote": "she had to stop twice walking to the shop, couldn't get a sentence out"
+          "quote": "she had to stop twice walking to the shop, couldn't get a sentence out",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -901,7 +943,8 @@
           "message_id": "ed062598-79ba-4c54-b346-094c83a7d37c",
           "sent_at": "2026-03-30T15:14:00Z",
           "sender": "Tom",
-          "quote": "grab rail's up by the bath, took ten minutes"
+          "quote": "grab rail's up by the bath, took ten minutes",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -926,7 +969,8 @@
           "message_id": "06ca9c1f-35ee-4793-b9df-f11f2600cd5f",
           "sent_at": "2026-03-18T11:02:00Z",
           "sender": "Dot",
-          "quote": "that hip's been getting worse for ages, she goes down the stairs sideways now"
+          "quote": "that hip's been getting worse for ages, she goes down the stairs sideways now",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -951,7 +995,8 @@
           "message_id": "f2316b2c-84a2-4c9a-83ca-b7d45c0c154a",
           "sent_at": "2026-03-05T17:47:00Z",
           "sender": "Sarah",
-          "quote": "picked up the apixaban, 5mg morning and night starting tonight"
+          "quote": "picked up the apixaban, 5mg morning and night starting tonight",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -982,13 +1027,15 @@
           "message_id": "148e2868-a59a-4f2d-b4fd-e0f26e123ee2",
           "sent_at": "2026-03-05T16:10:00Z",
           "sender": "Sarah",
-          "quote": "it's atrial fibrillation. They're putting her on a blood thinner, apixaban"
+          "quote": "it's atrial fibrillation. They're putting her on a blood thinner, apixaban",
+          "transcribed": false
         },
         {
           "message_id": "a6abdf10-3d32-4128-bb57-7a7fd41bf440",
           "sent_at": "2026-03-05T16:22:00Z",
           "sender": "Tom",
-          "quote": "is that the one where she can't take ibuprofen?"
+          "quote": "is that the one where she can't take ibuprofen?",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -1016,7 +1063,8 @@
           "message_id": "5a572131-890c-48f0-bbe0-8b61fc545f90",
           "sent_at": "2026-02-26T11:40:00Z",
           "sender": "Sarah",
-          "quote": "her BP was 168/94 and he says her pulse is all over the place. Referring her to cardiology"
+          "quote": "her BP was 168/94 and he says her pulse is all over the place. Referring her to cardiology",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -1041,7 +1089,8 @@
           "message_id": "a19a71e0-9587-41a7-b629-bde1e6def71f",
           "sent_at": "2026-02-14T09:43:00Z",
           "sender": "Sarah",
-          "quote": "she said she went a bit dizzy getting up this morning. Told her to take her time"
+          "quote": "she said she went a bit dizzy getting up this morning. Told her to take her time",
+          "transcribed": false
         }
       ],
       "edited_at": null,
@@ -1061,7 +1110,8 @@
           "message_id": "abfe04f3-ff30-4017-824a-6136057fa44a",
           "sent_at": "2026-02-09T19:12:00Z",
           "sender": "Tom",
-          "quote": "key safe went on back at the start of the month, code's the same as the garage"
+          "quote": "key safe went on back at the start of the month, code's the same as the garage",
+          "transcribed": false
         }
       ],
       "edited_at": null,

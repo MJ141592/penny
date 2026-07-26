@@ -10,8 +10,8 @@ part of the product that has nothing to do with WhatsApp — keeps working.
 That is why the return types are dataclasses rather than raw dicts: the unavailable case has to
 be representable, and a `dict | None` return pushes that decision onto every call site.
 
-Three verified facts from `docs/railway-deployment.md` that the code below encodes, each of
-which is silently wrong if you guess:
+Four verified facts that the code below encodes, each of which is silently wrong if you guess
+(the first three from `docs/railway-deployment.md`):
 
 * `/send/message` takes the field **`phone`** even for a group, and it wants the full
   `...@g.us` JID. There is no separate group endpoint.
@@ -28,6 +28,12 @@ which is silently wrong if you guess:
   It gets its own timeout, and it must never be on a path anything polls.
 * `qr_link` is a **PNG URL**, not a raw QR payload. Handing it to a QR renderer produces a QR
   code containing a URL, which scans as nothing.
+* `GET /message/{message_id}/download` (verified in v9's `openapi.yaml`, 2026-07-25) is the
+  **only** way to a media file's bytes. WhatsApp media is end-to-end encrypted, so the
+  `mmg.whatsapp.net` URL in a stored payload is an encrypted blob and the `mediaKey` that
+  opens it lives in GOWA's session store. `WHATSAPP_AUTO_DOWNLOAD_MEDIA` stays **false** — it
+  grows `/app/statics/media` without bound — so `download_media` fetches on demand and the
+  caller keeps the transcript, not the file.
 
 Auth is HTTP basic from `settings.gowa_basic_auth` ("user:pass"). GOWA parses that variable
 with `strings.Split(s, ":")` on its side, so the password provably contains no colon and
@@ -40,6 +46,7 @@ import logging
 import re
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -55,6 +62,12 @@ SEND_TIMEOUT = httpx.Timeout(10.0, connect=2.0)
 # A slow response here is expected behaviour, not a hang; anything under ~125s would time out
 # on the *client* side of a call that was about to succeed.
 LOGIN_TIMEOUT = httpx.Timeout(130.0, connect=5.0)
+# Media download is the one call that moves real bytes, and it is not on a request path: it
+# runs behind the webhook's 200, so it can afford to wait for a sidecar that has to fetch and
+# decrypt the blob from WhatsApp before it answers. Still bounded — a stalled read here would
+# otherwise pin a task for as long as the socket stayed open. `read` is the per-chunk budget,
+# not the whole transfer, which is why it is far shorter than the pool-wide default would be.
+MEDIA_TIMEOUT = httpx.Timeout(30.0, connect=5.0, read=20.0)
 
 UNCONFIGURED = "gowa_not_configured"
 UNREACHABLE = "gowa_unreachable"
@@ -63,6 +76,11 @@ UNREACHABLE = "gowa_unreachable"
 DEVICE_ID_REQUIRED = "gowa_device_id_required"
 NO_DEVICE = "gowa_no_device_id"
 DEVICE_ID_HEADER = "X-Device-Id"
+# Media-only reasons. Each one means "there is no audio to transcribe", and each one is a
+# different thing to go and look at, so they are not collapsed into UNREACHABLE.
+MEDIA_TOO_LARGE = "gowa_media_too_large"
+MEDIA_EMPTY = "gowa_media_empty"
+MEDIA_NOT_BINARY = "gowa_media_not_binary"
 
 # GOWA's `code` is a SCREAMING_SNAKE enum. Anything else in that field is treated as absent
 # rather than passed on: the sibling `message` field can echo the text we just sent, and a
@@ -318,6 +336,114 @@ async def send_message(chat_id: str, text: str) -> GowaSendResult:
     # chat_id is an identifier, not content; the text we sent is never logged.
     log.info("gowa.sent", extra={"chat_id": chat_id, "char_count": len(text)})
     return GowaSendResult(ok=True, message_id=_as_str(results.get("message_id")))
+
+
+async def download_media(provider_message_id: str) -> tuple[bytes, str] | None:
+    """`GET /message/{id}/download` — `(bytes, content_type)`, or None if there is no media.
+
+    THIS IS THE ONLY WAY TO THE BYTES. WhatsApp media is end-to-end encrypted: the
+    `mmg.whatsapp.net` URL sitting in the stored payload is an encrypted blob, and the
+    `mediaKey` that would decrypt it lives in GOWA's session store, not ours. Fetching that URL
+    directly returns ciphertext. So the sidecar being down means no audio — not a slower path
+    to it.
+
+    Fetched ON DEMAND and never persisted. `WHATSAPP_AUTO_DOWNLOAD_MEDIA` stays false because
+    it grows `/app/statics/media` without bound; the caller transcribes, keeps the text and
+    drops these bytes.
+
+    Streamed with a hard `transcription_max_bytes` cap rather than `response.content`, so a
+    response that lies about (or omits) its length still cannot be read into memory without
+    limit. Like everything else in this module it NEVER raises: None is a normal answer.
+    """
+    path = f"/message/{quote(provider_message_id, safe='')}/download"
+    media, error = await _download(path)
+
+    if error == DEVICE_ID_REQUIRED:
+        # Same self-healing shape as `send_message`: never guess whether v9 wants a device id
+        # on this route, let GOWA say so and then answer. See that docstring for why.
+        device_id = await _first_device_id()
+        if not device_id:
+            log.warning("gowa.media_no_device")
+            return None
+        log.info("gowa.media_retry_with_device")
+        media, error = await _download(
+            path, params={"device_id": device_id}, headers={DEVICE_ID_HEADER: device_id}
+        )
+
+    if media is None:
+        # No message id, no content: an id is a handle, and the reason is an enum of ours.
+        log.info("gowa.media_unavailable", extra={"error": error})
+        return None
+    audio, content_type = media
+    log.info(
+        "gowa.media_downloaded",
+        extra={"byte_count": len(audio), "content_type": content_type},
+    )
+    return media
+
+
+async def _download(
+    path: str,
+    *,
+    params: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+) -> tuple[tuple[bytes, str] | None, str | None]:
+    """`_call`'s sibling for a binary body. Separate because `_call` parses JSON, and a JSON
+    parse of an audio file is a `UnicodeDecodeError` reported as "sidecar unreachable"."""
+    base = _base_url()
+    if not base:
+        return None, UNCONFIGURED
+    limit = get_settings().transcription_max_bytes
+    try:
+        async with (
+            httpx.AsyncClient(base_url=base, auth=_auth(), timeout=MEDIA_TIMEOUT) as client,
+            client.stream("GET", path, params=params, headers=headers) as response,
+        ):
+            if response.status_code >= 400:
+                # The error body is small and is the only place the DEVICE_ID_REQUIRED
+                # enum lives, so it is read — but only after the status says it is an
+                # error, never for a 200 that could be megabytes of audio.
+                await response.aread()
+                code = _error_code(response)
+                log.warning(
+                    "gowa.media_http_error",
+                    extra={"status": response.status_code, "code": code},
+                )
+                if code == "DEVICE_ID_REQUIRED":
+                    return None, DEVICE_ID_REQUIRED
+                return None, f"gowa_http_{response.status_code}"
+
+            content_type = _content_type(response)
+            if content_type.startswith("application/json"):
+                # A 200 carrying JSON is GOWA telling us something, not audio. Sending it
+                # to a transcription endpoint would pay for a nonsense answer.
+                await response.aread()
+                return None, MEDIA_NOT_BINARY
+
+            declared = response.headers.get("content-length")
+            if declared and declared.isdigit() and int(declared) > limit:
+                # Refuse before reading a byte when the response says how big it is.
+                return None, MEDIA_TOO_LARGE
+
+            body = bytearray()
+            async for chunk in response.aiter_bytes():
+                body.extend(chunk)
+                if len(body) > limit:
+                    # And refuse mid-stream when it did not, or lied.
+                    return None, MEDIA_TOO_LARGE
+            if not body:
+                return None, MEDIA_EMPTY
+            return (bytes(body), content_type), None
+    except Exception as exc:
+        log.warning("gowa.media_unreachable", extra={"exc_type": type(exc).__name__})
+        return None, UNREACHABLE
+
+
+def _content_type(response: httpx.Response) -> str:
+    """The bare media type: `audio/ogg; codecs=opus` -> `audio/ogg`. Parameters are noise to
+    the caller, which only needs something to name the upload part with."""
+    raw = response.headers.get("content-type") or ""
+    return raw.split(";")[0].strip().lower() or "application/octet-stream"
 
 
 def _as_str(value: Any) -> str | None:

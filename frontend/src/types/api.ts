@@ -22,6 +22,15 @@ export interface SourceExcerpt {
   sent_at: string
   sender: string
   quote: string
+  /**
+   * The quote was SPOKEN into a voice note and transcribed by a model, not typed by a person.
+   *
+   * Surfaced, not swallowed. Speech-to-text mishears exactly the words a care record cannot
+   * afford to lose — a person's name, a drug name, a dose — and the only person who can catch
+   * that is a family member who knows the recording is still sitting in WhatsApp. A quote
+   * presented as if it were typed gives them no reason to look.
+   */
+  transcribed: boolean
 }
 
 /** Who did or reported it. Comes from the WhatsApp sender, not from who logged in. */

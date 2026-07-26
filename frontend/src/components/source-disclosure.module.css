@@ -80,6 +80,14 @@
   content: '\201D';
 }
 
+/*
+ * A transcript, marked at the rule rather than only in words: dashed, because the words beside
+ * it are a machine's hearing of a recording and not something a person typed and read back.
+ */
+.figureSpoken {
+  border-left-style: dashed;
+}
+
 .attribution {
   margin-top: 4px;
   font-size: 13px;
@@ -97,6 +105,30 @@
 
 .sep {
   opacity: 0.5;
+}
+
+/* Part of the attribution line, not a badge: how the words arrived is who-and-when metadata. */
+.spoken {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-h);
+}
+
+.mic {
+  flex: none;
+  opacity: 0.75;
+}
+
+/*
+ * Said once per event, under the quotes it applies to, and only when one of them is spoken.
+ * Repeating it against every transcript would train the family to stop reading it.
+ */
+.spokenNote {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 150%;
+  color: var(--text);
 }
 
 /* A human-authored event has no message behind it. Say so rather than showing nothing. */

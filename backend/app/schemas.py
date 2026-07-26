@@ -82,6 +82,11 @@ class SourceExcerpt(BaseModel):
     # substituting a placeholder name would put a fabricated attribution next to a real quote.
     sender: NullableStr = ""
     quote: NullableStr = ""
+    # This quote was spoken into a voice note and transcribed by a model, not typed. Defaults
+    # to False so every event written before transcription existed still renders — and so an
+    # excerpt that lost the key can only ever under-claim, never assert a transcript we do not
+    # have. The UI labels it; the family can then check the words against the recording.
+    transcribed: bool = False
 
 
 class EventActor(BaseModel):

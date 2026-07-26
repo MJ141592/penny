@@ -124,6 +124,10 @@ class SourceExcerpt:
     sent_at: datetime
     sender: str | None
     quote: str
+    # The quote was SPOKEN and machine-transcribed, not typed. Carried all the way to the UI:
+    # a mis-heard drug name is the error that matters most in a care record, and it is only
+    # checkable if the family can see which quotes came out of a microphone.
+    transcribed: bool = False
 
 
 @dataclass(slots=True)
@@ -737,6 +741,7 @@ def _attribute_quotes(quotes: list[str], sources: Sequence[ChunkMessage]) -> lis
                 sent_at=owner.sent_at,
                 sender=owner.sender_display_name,
                 quote=quote,
+                transcribed=owner.transcribed,
             )
         )
     return excerpts

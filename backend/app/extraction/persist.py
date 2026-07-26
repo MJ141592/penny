@@ -472,6 +472,9 @@ def _excerpts(excerpts: Sequence[SourceExcerpt]) -> list[dict[str, Any]]:
             "sent_at": excerpt.sent_at.isoformat(),
             "sender": _clean(excerpt.sender),
             "quote": _clean(excerpt.quote) or "",
+            # Stored per EXCERPT, not per event: one event routinely cites a spoken message and
+            # a typed one, and the family needs to know which sentence is the machine's hearing.
+            "transcribed": excerpt.transcribed,
         }
         for excerpt in excerpts
     ]

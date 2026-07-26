@@ -43,6 +43,13 @@ unextracted forever. `households_due_for_extraction` is the query the hourly
 `POST /api/internal/tick` is meant to run to close that hole. THAT ENDPOINT DOES NOT EXIST YET
 (documented in `docs/api-contract.md`, no router implements it); until it does, a quiet group's
 tail waits for its next message.
+
+A VOICE NOTE IS HELD BACK UNTIL IT HAS BEEN TRANSCRIBED, OR UNTIL WE GIVE UP ON IT. That rule
+lives in `_unextracted`, for exactly the reason the cadence gate lives here: it has to hold for
+every caller, not just the webhook that scheduled the transcription. Extracting a voice note
+before its transcript lands reads "[voice note]", finds nothing, and stamps `extracted_at` — so
+the transcript arrives seconds later against a message that will never be looked at again, and
+the fall it described is lost with no error anywhere. See `TRANSCRIPTION_GRACE`.
 """
 
 from __future__ import annotations
@@ -52,7 +59,7 @@ import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -65,6 +72,7 @@ from app.extraction.runner import OPEN_EVENTS_LIMIT, OpenEvent, extract_messages
 from app.llm.gateway import BudgetExceededError, LLMGateway
 from app.llm.recorder import DbRunRecorder
 from app.models import Event, Household, LlmRun, Member, Message
+from app.transcription import AUDIO_MESSAGE_TYPES, DOWNLOADABLE_PROVIDER, TRANSCRIBED_MARKER
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -84,6 +92,39 @@ BUDGET_WINDOW = timedelta(days=30)
 # the whole point of the block is letting the model attach "it went fine" to something it is
 # not currently reading. A 400-day floor keeps a long-dead appointment out of every prompt.
 OPEN_EVENT_MAX_AGE = timedelta(days=400)
+
+# HOW LONG A VOICE NOTE IS INVISIBLE TO EXTRACTION WHILE ITS TRANSCRIPT IS FETCHED.
+#
+# This is the ordering guarantee, and it is stated as a window rather than as a lock because the
+# thing being ordered is a background task against every OTHER caller of this module — the next
+# webhook, the import job, the tick. A `[voice note]` extracted at second 3 and transcribed at
+# second 4 is not an error anyone can see: the row is stamped, the run reported success, and the
+# words are simply never read. So the row is withheld instead, and the withholding EXPIRES:
+# transcription that is switched off, fails, or finds the media gone leaves no marker, and the
+# message must not be hidden from the feed forever because of it. After this it extracts as
+# "[voice note]", which is exactly the behaviour before any of this existed.
+#
+# IT MUST EXCEED THE SLOWEST RUN THAT CAN STILL SUCCEED, and that is arithmetic, not taste.
+# Every stage between `ingested_at` and the marker is separately bounded, and the window has to
+# cover their SUM — a transcript that lands after the window has closed lands on a message a
+# concurrent run has already extracted as "[voice note]" and stamped, which is the silent loss
+# this whole mechanism exists to prevent:
+#
+#     webhooks.COMMIT_WAIT_TRIES * COMMIT_WAIT_SECONDS   60 * 0.25  =  15s
+#     gowa.MEDIA_TIMEOUT (the whole download)                          30s
+#     the OpenAI client timeout in app.openai_client                   90s
+#                                                                    -----
+#                                                                     135s
+#
+# Two minutes was under that. `test_voice_end_to_end` asserts the inequality against the three
+# constants themselves, so raising any of those timeouts fails a test here rather than quietly
+# reopening the race.
+#
+# Raising it is nearly free. It is a DEADLINE, not a delay: in the normal case nothing waits at
+# all, because the marker lands and the message becomes visible the moment it does. The cost is
+# paid only when transcription FAILS, and it is measured against a cadence gate of 40 messages
+# or 6 hours — so it is not something a family could perceive.
+TRANSCRIPTION_GRACE = timedelta(minutes=5)
 
 
 @dataclass(frozen=True, slots=True)
@@ -285,14 +326,21 @@ async def households_due_for_extraction(session: AsyncSession) -> list[UUID]:
     The same two thresholds as `cadence_decision`, evaluated in Postgres over every household
     at once. System messages are excluded on both sides so they can neither reach the count
     threshold nor keep a household on this list forever — they are stamped by `_stamp_inert`,
-    which only runs once something else brings the household through.
+    which only runs once something else brings the household through. Voice notes still waiting
+    on a transcript are excluded for the same reason `_unextracted` excludes them: this query
+    must count exactly what that one would return, or the tick wakes a household to extract a
+    message the run will not be able to see.
     """
     settings = get_settings()
     cutoff = datetime.now(UTC) - timedelta(hours=settings.extract_max_age_hours)
     rows = (
         await session.execute(
             sa.select(Message.household_id)
-            .where(Message.extracted_at.is_(None), Message.message_type != "system")
+            .where(
+                Message.extracted_at.is_(None),
+                Message.message_type != "system",
+                sa.not_(_awaiting_transcription()),
+            )
             .group_by(Message.household_id)
             .having(
                 sa.or_(
@@ -355,6 +403,12 @@ async def _unextracted(session: AsyncSession, household_id: UUID) -> list[ChunkM
     model to read it finds nothing — but it must still get `extracted_at` stamped, or the
     "unextracted" count never reaches zero and every subsequent run rebuilds the same chunk.
     That stamping happens in `_stamp_inert`, below, not by pretending they were extracted.
+
+    A voice note whose transcript is still being fetched is excluded too, and NOT stamped: it is
+    coming back, in seconds, with words in it. `_awaiting_transcription` is the whole ordering
+    guarantee between transcription and extraction and it is one clause long on purpose — the
+    alternative, holding the household's advisory lock across an OpenAI call, orders this caller
+    against the other callers of this module and nothing else.
     """
     rows = (
         await session.execute(
@@ -371,22 +425,76 @@ async def _unextracted(session: AsyncSession, household_id: UUID) -> list[ChunkM
                 Message.household_id == household_id,
                 Message.extracted_at.is_(None),
                 Message.message_type != "system",
+                sa.not_(_awaiting_transcription()),
             )
             .order_by(Message.sent_at, Message.source_ordinal, Message.id)
         )
     ).all()
-    return [
-        ChunkMessage(
-            id=row.id,
-            sent_at=row.sent_at,
-            sender_display_name=row.sender_display_name,
-            text=row.text,
-            message_type=row.message_type,
-            media_filename=(row.payload or {}).get("filename"),
-            source_ordinal=row.source_ordinal,
-        )
-        for row in rows
-    ]
+    return [_as_chunk_message(row) for row in rows]
+
+
+def _awaiting_transcription() -> sa.ColumnElement[bool]:
+    """A voice note we have asked a model to listen to and have not heard back about yet.
+
+    WITHHOLDING IS ONLY EVER CORRECT WHEN A TRANSCRIPT IS ACTUALLY COMING. Every message this
+    matches is one the feed does not show yet, so the predicate has to mirror the conditions
+    `app.transcription._skip_reason` uses to decide it will do some work — if the two drift, we
+    are hiding a message to wait for something that will never happen.
+
+    * **transcription is switched on at all.** The kill switch has to be a kill switch: with it
+      off, nothing will ever write a marker, and withholding would turn "voice notes are
+      placeholders again" into "voice notes are placeholders two minutes late". Off means the
+      pre-transcription behaviour exactly, with no window.
+    * **it is audio** — nothing else is ever transcribed.
+    * **it came from GOWA, with a provider message id.** The bytes only exist behind
+      `GET /message/{id}/download`; a `.txt` export line reading `<audio omitted>` refers to a
+      file that was never uploaded anywhere we can reach, so `_skip_reason` refuses it
+      immediately as `no_downloadable_media`. Withholding those was a real bug and not a
+      theoretical one: an import extracts with `force=True` the moment it lands, so every
+      `<audio omitted>` line in the export was skipped by the run the family is watching, left
+      `extracted_at IS NULL`, and under-counted in the `extracted_count / inserted_count`
+      progress bar — for an import that then reported itself complete.
+    * **the payload carries no transcript marker** — the marker is set in the same transaction
+      as `messages.text`, so "marked" and "has words" can never disagree.
+    * **it is younger than `TRANSCRIPTION_GRACE`** — the expiry, for the cases the clauses
+      above cannot see coming: the sidecar is down, the media has aged out of GOWA, the model
+      errored. Without it those voice notes would be withheld from the feed permanently. This
+      clause is what makes the worst failure "extracted a bit late as [voice note]" rather than
+      "silently never extracted".
+
+    It reads `ingested_at`, not `sent_at`: the wait is on OUR pipeline, and a message can be
+    days old when it reaches us.
+
+    Both sides of that comparison are the DATABASE's clock. `ingested_at` is written by
+    `now()` in Postgres, so measuring its age against `datetime.now()` in the app measures the
+    skew between two machines as well as the age of the row — and a container running a few
+    tens of milliseconds ahead is enough to make a just-committed message look like it arrives
+    in the future, i.e. to withhold it for a window that never opens.
+    """
+    if not get_settings().transcribe_voice_notes:
+        return sa.false()
+    return sa.and_(
+        Message.message_type.in_(sorted(AUDIO_MESSAGE_TYPES)),
+        Message.provider == DOWNLOADABLE_PROVIDER,
+        Message.provider_message_id.isnot(None),
+        sa.not_(Message.payload.has_key(TRANSCRIBED_MARKER)),
+        Message.ingested_at > sa.func.now() - TRANSCRIPTION_GRACE,
+    )
+
+
+def _as_chunk_message(row: Any) -> ChunkMessage:
+    """One selected row -> what the chunker reads. `payload` is optional on the row."""
+    payload = getattr(row, "payload", None) or {}
+    return ChunkMessage(
+        id=row.id,
+        sent_at=row.sent_at,
+        sender_display_name=row.sender_display_name,
+        text=row.text,
+        message_type=row.message_type,
+        media_filename=payload.get("filename"),
+        source_ordinal=row.source_ordinal,
+        transcribed=bool(payload.get(TRANSCRIBED_MARKER)),
+    )
 
 
 async def _context_before(
@@ -407,6 +515,7 @@ async def _context_before(
                 Message.sender_display_name,
                 Message.text,
                 Message.message_type,
+                Message.payload,
                 Message.source_ordinal,
             )
             .where(
@@ -419,17 +528,7 @@ async def _context_before(
             .limit(OVERLAP_MESSAGES)
         )
     ).all()
-    return [
-        ChunkMessage(
-            id=row.id,
-            sent_at=row.sent_at,
-            sender_display_name=row.sender_display_name,
-            text=row.text,
-            message_type=row.message_type,
-            source_ordinal=row.source_ordinal,
-        )
-        for row in reversed(rows)
-    ]
+    return [_as_chunk_message(row) for row in reversed(rows)]
 
 
 async def _open_events(session: AsyncSession, household_id: UUID, tz: ZoneInfo) -> list[OpenEvent]:

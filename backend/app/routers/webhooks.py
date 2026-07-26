@@ -39,7 +39,19 @@
    new hat. Replies are rate-limited per household: every one is an LLM call and an outbound
    WhatsApp message, and outbound volume is what gets the paired number banned.
 
-5. **Idempotency is not implemented here.** It lives in the partial unique index on
+5. **A VOICE NOTE IS TRANSCRIBED BEFORE IT IS EXTRACTED, AND BOTH HAPPEN AFTER THE 200.**
+   Fetching the audio from GOWA and sending it to a speech model is seconds of work against a
+   10-second budget, so it cannot be inline — but it also cannot merely be *scheduled* beside
+   extraction, because extraction that wins the race reads "[voice note]", finds nothing, and
+   stamps `extracted_at`. The transcript then lands against a message nothing will look at
+   again. So the two are ONE background task, awaited in order (`extract_in_background`), and
+   every OTHER caller of extraction is held off by `_awaiting_transcription` in
+   `app.extraction.service` — a GOWA voice note with no transcript marker is simply not in the
+   cursor until `TRANSCRIPTION_GRACE` has passed. See that function; the ordering rule lives
+   there because it has to hold for the import job and the tick as well as for this handler,
+   and the window's length is arithmetic over the timeouts below, not a round number.
+
+6. **Idempotency is not implemented here.** It lives in the partial unique index on
    `(household_id, provider_message_id)` and is enforced by `ingest_messages`. This handler's
    only job is to pass `payload.id` through faithfully, because a replay is the *expected* case
    whenever we are slow, not an anomaly.
@@ -89,6 +101,7 @@ from app.ingest.seam import ingest_messages
 from app.mentions import has_mention_marker, mentions_penny, normalise_jid
 from app.models import Household, Message
 from app.onboarding import provision_for_group, welcome_message
+from app.transcription import AUDIO_MESSAGE_TYPES, transcribe_voice_note
 
 log = logging.getLogger(__name__)
 
@@ -171,7 +184,7 @@ _RUNNING: set[asyncio.Task[None]] = set()
 # rate being near zero, so this is deliberately far below what a chatty family would generate.
 # Exceeding it is not an error the family should see: Penny simply says nothing, which is the
 # same thing she does for any message that is not addressed to her.
-MAX_REPLIES_PER_HOUSEHOLD = 4
+MAX_REPLIES_PER_HOUSEHOLD = 10
 REPLY_WINDOW_SECONDS = 3600.0
 # Enough households to cover every real one many times over; the bound only exists so a forged
 # stream of chat ids cannot grow this dict without limit. Oldest key is evicted first.
@@ -538,8 +551,26 @@ async def gowa_webhook(
     # (e) Extraction is LLM work: seconds to minutes, and a hard dependency on OpenAI being up.
     # It goes to BackgroundTasks, which Starlette runs after the response has been sent. A
     # duplicate delivery adds no work here because `inserted` is 0 for a replay.
+    #
+    # A voice note gets transcribed first, in that same task and awaited before extraction —
+    # see `extract_in_background`. NOT a second `add_task`: two tasks are two orderings, and
+    # the one where extraction wins loses the words.
+    #
+    # `AUDIO_MESSAGE_TYPES` is imported rather than restated: the set this schedules on and the
+    # set `transcribe_voice_note` acts on must be the same one, or we either schedule work that
+    # is immediately skipped or skip work nobody scheduled. And no, we do not try to tell a
+    # voice note from a forwarded music file — `_classify` collapses `voice`, `ptt` and `audio`
+    # into one type, the payload shape that would distinguish them is unverified, and guessing
+    # wrong loses "Mum had a fall this morning". Being wrong the other way costs a skipped
+    # download: `transcription_max_seconds` and `transcription_max_bytes` reject the ten-minute
+    # podcast before a byte of it reaches a model.
     if result.inserted:
-        background.add_task(spawn_extraction, result.household_id, payload.id)
+        background.add_task(
+            spawn_extraction,
+            result.household_id,
+            payload.id,
+            transcribe=message_type in AUDIO_MESSAGE_TYPES,
+        )
 
     # (f) The reply path, and the ONLY one. A linked group, a new message (not a replay), and an
     # explicit @-mention. `inserted` is what makes a GOWA retry free: five deliveries of one
@@ -1065,21 +1096,33 @@ async def send_reply(
         log.exception("webhook.reply_failed", extra={"household_id": str(household_id)})
 
 
-async def spawn_extraction(household_id: UUID, provider_message_id: str) -> None:
+async def spawn_extraction(
+    household_id: UUID,
+    provider_message_id: str,
+    *,
+    transcribe: bool = False,
+) -> None:
     """DETACH the work from the request. Not gratuitous — see `extract_in_background`.
 
     Returns immediately so the request can get on with committing the message this run
     depends on.
     """
-    task = asyncio.create_task(extract_in_background(household_id, provider_message_id))
+    task = asyncio.create_task(
+        extract_in_background(household_id, provider_message_id, transcribe=transcribe)
+    )
     # asyncio holds only a WEAK reference to a running task; without this the garbage
     # collector may cancel an extraction mid-run, at random, under load.
     _RUNNING.add(task)
     task.add_done_callback(_RUNNING.discard)
 
 
-async def extract_in_background(household_id: UUID, provider_message_id: str) -> None:
-    """Run extraction after the 200 has gone out.
+async def extract_in_background(
+    household_id: UUID,
+    provider_message_id: str,
+    *,
+    transcribe: bool = False,
+) -> None:
+    """Run extraction after the 200 has gone out — transcribing a voice note first.
 
     Opens its **own** session: the request's session is closed by the `get_session` dependency
     as soon as the response is written, so using it here would touch a closed connection. That
@@ -1100,15 +1143,26 @@ async def extract_in_background(household_id: UUID, provider_message_id: str) ->
     Nothing escapes. An exception here has no request to fail and no client to tell. The
     messages stay `extracted_at IS NULL`, so the next webhook or the cron tick picks them back
     up — that column is the entire retry mechanism and it needs no help from us.
+
+    TRANSCRIPTION IS AWAITED HERE RATHER THAN SCHEDULED BESIDE THIS. That single `await` is the
+    ordering guarantee for the message that triggered this task: the transcript is committed
+    before `run_extraction_for_household` opens the session that reads it, so extraction sees
+    words instead of "[voice note]". It is deliberately NOT a second `add_task` — two tasks are
+    two orderings and one of them silently loses the care event in the recording. The same
+    guarantee against every OTHER caller of extraction is `_awaiting_transcription`, in
+    `app.extraction.service`; this await alone would not survive a second webhook arriving.
     """
     try:
-        if not await _await_commit(household_id, provider_message_id):
+        message_id = await _await_commit(household_id, provider_message_id)
+        if message_id is None:
             # The request rolled back after all; there is no message and nothing to extract.
             log.warning(
                 "webhook.message_never_committed",
                 extra={"household_id": str(household_id)},
             )
             return
+        if transcribe:
+            await transcribe_in_background(household_id, message_id)
         async with get_sessionmaker()() as session:
             try:
                 summary = await run_extraction_for_household(session, household_id)
@@ -1124,8 +1178,61 @@ async def extract_in_background(household_id: UUID, provider_message_id: str) ->
         log.exception("webhook.extraction_failed", extra={"household_id": str(household_id)})
 
 
-async def _await_commit(household_id: UUID, provider_message_id: str) -> bool:
-    """Block until the ingested message is visible from a fresh connection."""
+async def transcribe_in_background(household_id: UUID, message_id: UUID) -> None:
+    """Turn one voice note into text, and commit it, before the caller extracts.
+
+    NOTHING ESCAPES, and nothing here may stop the extraction that follows. Every outcome —
+    GOWA down, the media aged out, the audio too long, transcription switched off, an exception
+    `transcribe_voice_note` promised not to raise and raised anyway — leaves the message exactly
+    as it was, `text` still NULL and `message_type` still "audio", and the run that follows
+    renders it "[voice note]" as it always did. Degrading is the whole design: a voice note that
+    was not transcribed is worth precisely as much as it was worth yesterday.
+
+    ITS OWN SESSION, AND IT COMMITS. Sharing the extraction session would put the transcript and
+    its `llm_runs` audit row inside the extraction transaction, where a failed run rolls both
+    back — and a rolled-back `llm_runs` row is an OpenAI call that was made, billed, and is not
+    in the ledger the per-household budget guard adds up. Committing here also means the
+    transcript is durable before anything reads it, which is the point of the exercise.
+
+    NO TEXT IN THE LOG, EVER. Ids, a duration, a character count, the model that was used.
+    """
+    started = time.monotonic()
+    try:
+        async with get_sessionmaker()() as session:
+            try:
+                transcript = await transcribe_voice_note(session, message_id)
+            except Exception:
+                await session.rollback()
+                raise
+            await session.commit()
+    except Exception:
+        # `transcribe_voice_note` is documented never to raise, so this is defence in depth: a
+        # bug in it must cost this message its transcript and nothing else.
+        log.exception(
+            "webhook.transcription_failed",
+            extra={"household_id": str(household_id), "message_id": str(message_id)},
+        )
+        return
+    log.info(
+        "webhook.transcribed" if transcript else "webhook.transcription_skipped",
+        extra={
+            "household_id": str(household_id),
+            "message_id": str(message_id),
+            "duration_ms": int((time.monotonic() - started) * 1000),
+            "model": transcript.model if transcript else None,
+            "audio_seconds": transcript.duration_seconds if transcript else None,
+            "char_count": len(transcript.text) if transcript else 0,
+        },
+    )
+
+
+async def _await_commit(household_id: UUID, provider_message_id: str) -> UUID | None:
+    """Block until the ingested message is visible from a fresh connection; its id, or None.
+
+    The id, rather than a bool, because transcription needs one: `provider_message_id` is
+    GOWA's identifier for the message and `messages.id` is ours, and this is the one place the
+    second is already being looked up by the first.
+    """
     return await _await_visible(
         sa.select(Message.id).where(
             Message.household_id == household_id,
@@ -1134,7 +1241,7 @@ async def _await_commit(household_id: UUID, provider_message_id: str) -> bool:
     )
 
 
-async def _await_household(household_id: UUID) -> bool:
+async def _await_household(household_id: UUID) -> UUID | None:
     """Block until the provisioned household is visible from a fresh connection.
 
     This is the ordering guarantee behind the welcome message: the family never learns a
@@ -1143,8 +1250,8 @@ async def _await_household(household_id: UUID) -> bool:
     return await _await_visible(sa.select(Household.id).where(Household.id == household_id))
 
 
-async def _await_visible(statement: sa.Select[Any]) -> bool:
-    """True once the row the request is writing has been committed by it.
+async def _await_visible(statement: sa.Select[Any]) -> UUID | None:
+    """The id of the row the request is writing, once it has committed it. None if it never did.
 
     Milliseconds in practice; the ceiling only matters when the request failed and will never
     commit at all, in which case we give up rather than act on a write that never happened.
@@ -1154,9 +1261,9 @@ async def _await_visible(statement: sa.Select[Any]) -> bool:
         async with maker() as session:
             found = (await session.execute(statement)).first()
         if found is not None:
-            return True
+            return found[0]
         await asyncio.sleep(COMMIT_WAIT_SECONDS)
-    return False
+    return None
 
 
 def _ignored(reason: str) -> dict[str, Any]:

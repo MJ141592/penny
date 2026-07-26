@@ -53,6 +53,29 @@ class Settings(BaseSettings):
     import_max_spend_usd: Decimal = Decimal("25")
     llm_monthly_budget_usd_per_household: Decimal = Decimal("15")
 
+    # --- Voice note transcription ---------------------------------------------------------
+    # In a family care chat "Mum had a fall this morning" is often SPOKEN. Without this the
+    # message reaches the timeline as "[voice note]" and extraction sees nothing at all.
+    #
+    # The kill switch. False leaves every voice note as the placeholder — the pre-transcription
+    # behaviour, and the thing to reach for if the audio bill or the sidecar misbehaves.
+    transcribe_voice_notes: bool = True
+    # The cheap model, deliberately: a 20-second voice note is a small job. Raise it to
+    # "gpt-4o-transcribe" if accuracy on names and doses is not good enough. Every value here
+    # must have a per-minute price in `app.llm.pricing.AUDIO_PRICES_PER_MINUTE`, or
+    # transcription refuses to run rather than spending money it cannot account for.
+    transcription_model: str = "gpt-4o-mini-transcribe"
+    # A 40-minute audio file in a family chat is somebody forwarding a podcast, not care
+    # signal — and it is the shape that quietly costs real money (300s at the mini rate is
+    # $0.015; 40 minutes is $0.12, every time it is replayed). Duration is read from the GOWA
+    # payload, so a note whose duration is not declared is not refused by this gate; the byte
+    # cap below is the backstop for that case.
+    transcription_max_seconds: int = 300
+    # Hard cap on what we will pull from the sidecar into memory. A one-minute WhatsApp voice
+    # note is well under 200 KB, so 20 MB is far past any real one and exists only so a
+    # misbehaving (or hostile) media response cannot be unbounded.
+    transcription_max_bytes: int = 20 * 1024 * 1024
+
     default_timezone: str = "Europe/London"
     serve_frontend: bool = True
 

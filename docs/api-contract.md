@@ -98,9 +98,15 @@ lives under `details`, discriminated by `kind`.
   "message_id": "6f1f9d5e-1b3a-4a2b-9d61-2f0a8c1e77aa",
   "sent_at": "2026-07-17T08:12:00Z",
   "sender": "Sarah",
-  "quote": "Just got back from the GP with Mum, bloods taken, review in 2 weeks"
+  "quote": "Just got back from the GP with Mum, bloods taken, review in 2 weeks",
+  "transcribed": false
 }
 ```
+
+`transcribed` means those words were **spoken into a voice note and written down by a speech
+model**, not typed. Always present; `false` for a typed message and for every event extracted
+before transcription existed. The UI must say so — speech-to-text mishears names, medicines and
+doses, which is precisely the class of error a family can catch and nobody else can.
 
 ### `details`, per kind
 
