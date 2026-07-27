@@ -29,7 +29,7 @@ RUN npm run build
 # local BuildKit accepts it. The builder stage keeps uv out of the runtime image anyway,
 # which is what the mount was for — nothing at runtime needs it, including
 # `alembic upgrade head`, because the venv is on PATH.
-FROM python:3.12-slim AS builder
+FROM python:3.14-slim AS builder
 
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
@@ -47,7 +47,7 @@ COPY backend/ ./
 RUN uv sync --frozen --no-dev
 
 # ---------- stage 3: the runtime image ----------
-FROM python:3.12-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
