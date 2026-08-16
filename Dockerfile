@@ -7,7 +7,7 @@
 # unreachable at build time. `alembic upgrade head` runs in railway.json's preDeployCommand.
 
 # ---------- stage 1: build the SPA ----------
-FROM node:22-alpine AS frontend
+FROM node:26-alpine AS frontend
 
 WORKDIR /build
 
